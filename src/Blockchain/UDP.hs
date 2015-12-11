@@ -52,12 +52,21 @@ data RawNodeDiscoveryPacket =
 data NodeDiscoveryPacket =
   Ping Integer Endpoint Endpoint Integer |
   Pong Endpoint Integer Integer |
-  FindNode NodeID Integer |
+  FindNeighbors NodeID Integer |
   Neighbors [Neighbor] Integer deriving (Show,Read,Eq)
 
 data Endpoint = Endpoint String Word16 Word16 deriving (Show,Read,Eq)
 data Neighbor = Neighbor Endpoint NodeID deriving (Show,Read,Eq)
 
+
+instance RLPSerializable Endpoint where
+    rlpEncode (Endpoint address udpPort tcpPort) = RLPArray [rlpEncode address, rlpEncode udpPort, rlpEncode tcpPort]
+    rlpDecode (RLPArray [address, udpPort, tcpPort]) = Endpoint (rlpDecode address) (rlpDecode udpPort) (rlpDecode tcpPort)
+              
+instance RLPSerializable Neighbor where
+    rlpEncode (Neighbor endpoint nodeID) = RLPArray [rlpEncode endpoint, rlpEncode nodeID]
+    rlpDecode (RLPArray [endpoint, nodeID]) = Neighbor (rlpDecode endpoint) (rlpDecode nodeID)
+              
 
 {-
 rlpToNDPacket::Word8->RLPObject->NodeDiscoveryPacket
@@ -93,7 +102,7 @@ ndPacketToRLP (Pong (Endpoint ipFrom udpPortFrom tcpPortFrom) tok expiration) = 
                                                                                                          rlpEncode tok,
                                                                                                          rlpEncode expiration])
 
-ndPacketToRLP (FindNode target expiration) = (3, RLPArray [rlpEncode target, rlpEncode expiration])
+ndPacketToRLP (FindNeighbors target expiration) = (3, RLPArray [rlpEncode target, rlpEncode expiration])
 
 --ndPacketToRLP (Neighbors ip port id' expiration) = (4, RLPArray [rlpEncode ip, rlpEncode $ toInteger port, rlpEncode id', rlpEncode expiration])
 
@@ -120,6 +129,25 @@ showPubKey (H.PubKeyU _) = error "Missing case in showPubKey: PubKeyU"
 -}  
 
 
+dataToPacket::B.ByteString->NodeDiscoveryPacket
+dataToPacket msg =
+    let r = bytesToWord256 $ B.unpack $ B.take 32 $ B.drop 32 $ msg
+        s = bytesToWord256 $ B.unpack $ B.take 32 $ B.drop 64 msg
+        v = head . B.unpack $ B.take 1 $ B.drop 96 msg
+            
+        theType = head . B.unpack $ B.take 1$ B.drop 97 msg
+        theRest = B.unpack $ B.drop 98 msg
+        (rlp, _) = rlpSplit $ B.pack theRest
+
+    in typeToPacket theType rlp
+    where
+      typeToPacket::Word8->RLPObject->NodeDiscoveryPacket
+      typeToPacket 1 (RLPArray [version, from, to, timestamp]) = Ping (rlpDecode version) (rlpDecode from) (rlpDecode to) (rlpDecode timestamp)
+      typeToPacket 2 (RLPArray [to, echo, timestamp]) = Pong (rlpDecode to) (rlpDecode echo) (rlpDecode timestamp)
+      typeToPacket 3 (RLPArray [target, timestamp]) = FindNeighbors (rlpDecode target) (rlpDecode timestamp)
+      typeToPacket 4 (RLPArray [RLPArray neighbors, timestamp]) = Neighbors (map rlpDecode neighbors) (rlpDecode timestamp)
+                   
+                                                                                     
 
 processDataStream'::[Word8]->IO H.PubKey
 processDataStream'
@@ -208,7 +236,7 @@ findNeighbors myPriv domain port = do
       talk prvKey' socket' = do
         let (theType, theRLP) =
               ndPacketToRLP $
-              FindNode (NodeID $ fst $ B16.decode "eab4e595d178422cb8b31eddde2d6dda74ad16609693614a29a214d2b2f457a7c97a442e74e58afd1b16657c5c5908255a450d8a202e8d3b2b31c9b17e7221f3") 100000000000000000
+              FindNeighbors (NodeID $ fst $ B16.decode "eab4e595d178422cb8b31eddde2d6dda74ad16609693614a29a214d2b2f457a7c97a442e74e58afd1b16657c5c5908255a450d8a202e8d3b2b31c9b17e7221f3") 100000000000000000
             theData = B.unpack $ rlpSerialize theRLP
             SHA theMsgHash = hash $ B.pack $ (theType:theData)
 
