@@ -15,12 +15,9 @@ executable ethereum-discover
                      , blockapps-data
                      , blockapps-util
                      , bytestring
-                     , cipher-aes
                      , cryptohash
---                     , cryptonite
                      , crypto-pubkey
                      , crypto-pubkey-types
-                     , crypto-random
                      , ethereum-rlp
                      , haskoin
                      , monads-tf
@@ -28,7 +25,6 @@ executable ethereum-discover
                      , persistent-postgresql
                      , postgresql-simple
                      , resourcet
-                     , stm
                      , text
                      , time
                      , transformers
