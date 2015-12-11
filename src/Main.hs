@@ -29,7 +29,7 @@ main = do
   let myPriv = privateKey
   
   _ <- runResourceT $ do
-         cxt <- initContextLite connStr
+         cxt <- initContextLite
          
          liftIO $ S.withSocketsDo $ bracket (connectMe listenPort) S.sClose (runEthUDPServer cxt myPriv)
 

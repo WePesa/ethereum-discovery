@@ -1,11 +1,9 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Blockchain.ContextLite (
-  ContextLite(..),
+  ContextLite, -- (..),
   initContextLite,
   addPeer,
   ) where
@@ -24,33 +22,17 @@ import qualified Database.PostgreSQL.Simple as PS
 import qualified Data.Text as T
 
 data ContextLite =
-  ContextLite {
-    liteSQLDB::SQLDB,
-    notifHandler::PS.Connection,
-    debugEnabled::Bool
-  } deriving Show
-
-
-instance Show PS.Connection where
-  show _ = "Postgres Simple Connection"
+  ContextLite { liteSQLDB::SQLDB }
 
 type ContextMLite = StateT ContextLite (ResourceT IO)
 
 instance HasSQLDB ContextMLite where
   getSQLDB = fmap liteSQLDB get
 
-initContextLite :: (MonadResource m, MonadIO m, MonadBaseControl IO m) => SQL.ConnectionString -> m ContextLite
-initContextLite _ = do
-  notif <- liftIO $ PS.connect PS.defaultConnectInfo {   -- bandaid, should eventually be added to monad class
-            PS.connectPassword = "api",
-            PS.connectDatabase = "eth"
-           }
+initContextLite :: (MonadResource m, MonadIO m, MonadBaseControl IO m) => m ContextLite
+initContextLite = do
   dbs <- openDBs
-  return ContextLite {
-                    liteSQLDB = sqlDB' dbs,                    
-                    notifHandler=notif,
-                    debugEnabled = False
-                 }
+  return ContextLite { liteSQLDB = sqlDB' dbs }
 
 addPeer :: (HasSQLDB m, MonadResource m, MonadBaseControl IO m, MonadThrow m)=>PPeer->m (SQL.Key PPeer)
 addPeer peer = do
