@@ -11,23 +11,15 @@ module Blockchain.ContextLite (
   ) where
 
 
-import Control.Monad.IO.Class
 import Control.Monad.State
 import Control.Monad.Trans.Resource
 
 import Blockchain.DBM
 import Blockchain.DB.SQLDB
 import Blockchain.Data.DataDefs
---import qualified Blockchain.AESCTR as AES
 
-import qualified Data.ByteString as B
-import qualified Crypto.Hash.SHA3 as SHA3
 import qualified Database.Persist.Postgresql as SQL
 import qualified Database.PostgreSQL.Simple as PS
-
-import           Crypto.Types.PubKey.ECC
-
-import Control.Concurrent.STM
 
 import qualified Data.Text as T
 
@@ -42,7 +34,6 @@ data ContextLite =
 instance Show PS.Connection where
   show _ = "Postgres Simple Connection"
 
-type TContext = TVar ContextLite
 type ContextMLite = StateT ContextLite (ResourceT IO)
 
 instance HasSQLDB ContextMLite where
