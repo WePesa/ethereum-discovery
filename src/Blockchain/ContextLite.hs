@@ -6,15 +6,8 @@
 
 module Blockchain.ContextLite (
   ContextLite(..),
-  ContextMLite,
-  TContext,
-  runEthCryptMLite,
- -- isDebugEnabled,
   initContextLite,
   addPeer,
-  getPeerByIP,
-  EthCryptMLite,
-  EthCryptStateLite(..)
   ) where
 
 
@@ -38,21 +31,6 @@ import Control.Concurrent.STM
 
 import qualified Data.Text as T
 
-data EthCryptStateLite =
-  EthCryptStateLite {
---    encryptState::AES.AESCTRState,
---    decryptState::AES.AESCTRState,
-    egressMAC::SHA3.Ctx,
-    ingressMAC::SHA3.Ctx,
-    egressKey::B.ByteString,
-    ingressKey::B.ByteString,
-    peerId::Point,
-    isClient::Bool,
-    afterHello::Bool
-  } 
-
-type EthCryptMLite a = StateT EthCryptStateLite a
-
 data ContextLite =
   ContextLite {
     liteSQLDB::SQLDB,
@@ -69,15 +47,6 @@ type ContextMLite = StateT ContextLite (ResourceT IO)
 
 instance HasSQLDB ContextMLite where
   getSQLDB = fmap liteSQLDB get
-
-runEthCryptMLite::ContextLite->EthCryptStateLite->EthCryptMLite ContextMLite a->IO ()
-runEthCryptMLite cxt cState f = do
-  _ <- runResourceT $
-       flip runStateT cxt $
-       flip runStateT cState $
-       f
-  return ()
-
 
 initContextLite :: (MonadResource m, MonadIO m, MonadBaseControl IO m) => SQL.ConnectionString -> m ContextLite
 initContextLite _ = do
