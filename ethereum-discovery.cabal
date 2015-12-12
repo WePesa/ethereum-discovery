@@ -8,7 +8,6 @@ cabal-version:       >=1.10
 
 executable ethereum-discover
   main-is:             Main.hs
-  other-extensions:    OverloadedStrings
   build-depends:       base
                      , base16-bytestring
                      , binary
