@@ -107,7 +107,7 @@ ndPacketToRLP (Pong (Endpoint ipFrom udpPortFrom tcpPortFrom) tok expiration) = 
 
 ndPacketToRLP (FindNeighbors target expiration) = (3, RLPArray [rlpEncode target, rlpEncode expiration])
 
---ndPacketToRLP (Neighbors ip port id' expiration) = (4, RLPArray [rlpEncode ip, rlpEncode $ toInteger port, rlpEncode id', rlpEncode expiration])
+ndPacketToRLP (Neighbors neighbors expiration) = (4, RLPArray [RLPArray $ map rlpEncode neighbors, rlpEncode expiration])
 
 ndPacketToRLP x = error $ "Unsupported case in call to ndPacketToRLP: " ++ show x
 
