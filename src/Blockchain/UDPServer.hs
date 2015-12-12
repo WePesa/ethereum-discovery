@@ -62,23 +62,32 @@ udpHandshakeServer prv sock = do
    let (packet, otherPubkey) = dataToPacket msg
    liftIO $ putStrLn $ "Message Received from " ++ show otherPubkey
    liftIO $ print $ dataToPacket msg
-                 
-   let ip = sockAddrToIP addr
-   curTime <- liftIO $ getCurrentTime
-   let peer = PPeer {
-              pPeerPubkey = hPubKeyToPubKey $ otherPubkey,
-              pPeerIp = T.pack ip,
-              pPeerPort = 30305, -- change 
-              pPeerNumSessions = 0,
-              pPeerLastTotalDifficulty = 0,
-              pPeerLastMsg  = T.pack "msg",
-              pPeerLastMsgTime = curTime,
-              pPeerLastBestBlockHash = SHA 0,
-              pPeerVersion = T.pack "61" -- fix
-            }
-   _ <- addPeer $ peer
+
+   case packet of
+     Ping _ _ _ _ -> do
+                 let ip = sockAddrToIP addr
+                 curTime <- liftIO $ getCurrentTime
+                 let peer = PPeer {
+                                pPeerPubkey = hPubKeyToPubKey $ otherPubkey,
+                                pPeerIp = T.pack ip,
+                                pPeerPort = 30305, -- change 
+                                pPeerNumSessions = 0,
+                                pPeerLastTotalDifficulty = 0,
+                                pPeerLastMsg  = T.pack "msg",
+                                pPeerLastMsgTime = curTime,
+                                pPeerLastBestBlockHash = SHA 0,
+                                pPeerVersion = T.pack "61" -- fix
+                              }
+                 _ <- addPeer $ peer
         
-   time <- liftIO $ round `fmap` getPOSIXTime
-   liftIO $ sendPacket sock prv addr $ Pong (Endpoint "127.0.0.1" 30303 30303) 4 (time+50)
-        
+                 time <- liftIO $ round `fmap` getPOSIXTime
+                 liftIO $ sendPacket sock prv addr $ Pong (Endpoint "127.0.0.1" 30303 30303) 4 (time+50)
+
+     Pong _ _ _ -> return ()
+
+     FindNeighbors _ _ -> liftIO $ sendPacket sock prv addr $ Neighbors [] 1
+
+     Neighbors _ _ -> return ()
+
+                        
    udpHandshakeServer prv sock
