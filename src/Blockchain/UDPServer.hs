@@ -8,17 +8,17 @@ module Blockchain.UDPServer (
 
 import qualified Network.Socket as S
 import qualified Network.Socket.ByteString as NB
---
+
 import           Control.Monad
 import           Control.Monad.IO.Class
 import           Control.Monad.State
 import           Control.Monad.Trans.Resource
---
+
 import           Data.Time.Clock.POSIX
 import           Data.Time.Clock
 import qualified Data.ByteString as B
 import qualified Data.Text as T
---
+
 import           Blockchain.UDP
 import           Blockchain.SHA
 import           Blockchain.Data.RLP
@@ -37,7 +37,7 @@ import qualified Crypto.Hash.SHA3 as SHA3
 import           Crypto.PubKey.ECC.DH
 
 
-
+    
 runEthUDPServer::ContextLite->PrivateNumber->S.Socket->IO ()
 runEthUDPServer cxt myPriv socket = do
   _ <- runResourceT $ flip runStateT cxt $ udpHandshakeServer (fromMaybe (error "invalid private nubmer in runEthUDPServer") $ H.makePrvKey $ fromIntegral myPriv) socket
@@ -59,21 +59,11 @@ udpHandshakeServer :: (HasSQLDB m, MonadResource m, MonadBaseControl IO m, Monad
 udpHandshakeServer prv conn = do
    (msg,addr) <- liftIO $ NB.recvFrom conn 1280  -- liftIO unavoidable?
 
+   let (packet, otherPubkey) = dataToPacket msg
+   liftIO $ putStrLn $ "Message Received from " ++ show otherPubkey
+   liftIO $ print $ dataToPacket msg
+                 
    let ip = sockAddrToIP addr
-
-   let r = bytesToWord256 $ B.unpack $ B.take 32 $ B.drop 32 $ msg
-       s = bytesToWord256 $ B.unpack $ B.take 32 $ B.drop 64 msg
-       v = head . B.unpack $ B.take 1 $ B.drop 96 msg
-
-       theType = head . B.unpack $ B.take 1$ B.drop 97 msg
-       theRest = B.unpack $ B.drop 98 msg
-       (rlp, _) = rlpSplit $ B.pack theRest
-
-       signature = ExtendedSignature (H.Signature (fromIntegral r) (fromIntegral s)) yIsOdd
-                         
-       SHA messageHash = hash $ B.pack $ [theType] ++ B.unpack (rlpSerialize rlp)
-       otherPubkey = fromMaybe (error "malformed signature in udpHandshakeServer") $ getPubKeyFromSignature signature messageHash  
-       yIsOdd = v == 1
 
    time <- liftIO $ round `fmap` getPOSIXTime
 
@@ -89,7 +79,7 @@ udpHandshakeServer prv conn = do
        r' = H.sigR signature'
        s' = H.sigS signature'
        theSignature = word256ToBytes (fromIntegral r') ++ word256ToBytes (fromIntegral s') ++ [v']
-       theHash = B.unpack $ SHA3.hash 256 $ B.pack $ theSignature ++ [theType] ++ theData
+       theHash = B.unpack $ SHA3.hash 256 $ B.pack $ theSignature ++ [theType'] ++ theData
    
    curTime <- liftIO $ getCurrentTime
  
@@ -106,7 +96,7 @@ udpHandshakeServer prv conn = do
             }
  
    _ <- addPeer $ peer
-   _ <- liftIO $ NB.sendTo conn ( B.pack $ theHash ++ theSignature ++ [theType] ++ theData) addr
+   _ <- liftIO $ NB.sendTo conn ( B.pack $ theHash ++ theSignature ++ [theType'] ++ theData) addr
    
    udpHandshakeServer prv conn
    return () 

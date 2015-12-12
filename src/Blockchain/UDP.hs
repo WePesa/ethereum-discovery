@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Blockchain.UDP (
+  dataToPacket,
   getServerPubKey,
   findNeighbors,
   ndPacketToRLP,
@@ -129,17 +130,23 @@ showPubKey (H.PubKeyU _) = error "Missing case in showPubKey: PubKeyU"
 -}  
 
 
-dataToPacket::B.ByteString->NodeDiscoveryPacket
+dataToPacket::B.ByteString->(NodeDiscoveryPacket, H.PubKey)
 dataToPacket msg =
     let r = bytesToWord256 $ B.unpack $ B.take 32 $ B.drop 32 $ msg
         s = bytesToWord256 $ B.unpack $ B.take 32 $ B.drop 64 msg
         v = head . B.unpack $ B.take 1 $ B.drop 96 msg
-            
+        yIsOdd = v == 1
+        signature = ExtendedSignature (H.Signature (fromIntegral r) (fromIntegral s)) yIsOdd
+
+        SHA messageHash = hash $ B.pack $ [theType] ++ B.unpack (rlpSerialize rlp)
+        otherPubkey = fromMaybe (error "malformed signature in udpHandshakeServer") $ getPubKeyFromSignature signature messageHash
+                    
         theType = head . B.unpack $ B.take 1$ B.drop 97 msg
         theRest = B.unpack $ B.drop 98 msg
         (rlp, _) = rlpSplit $ B.pack theRest
+                   
 
-    in typeToPacket theType rlp
+    in (typeToPacket theType rlp, otherPubkey)
     where
       typeToPacket::Word8->RLPObject->NodeDiscoveryPacket
       typeToPacket 1 (RLPArray [version, from, to, timestamp]) = Ping (rlpDecode version) (rlpDecode from) (rlpDecode to) (rlpDecode timestamp)
