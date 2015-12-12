@@ -2,6 +2,7 @@
 
 module Blockchain.UDP (
   dataToPacket,
+  sendPacket,
   getServerPubKey,
   findNeighbors,
   ndPacketToRLP,
@@ -10,9 +11,10 @@ module Blockchain.UDP (
   ) where
 
 import Network.Socket
-import qualified Network.Socket.ByteString as B
+import qualified Network.Socket.ByteString as NB
 
 import Control.Exception
+import Control.Monad.IO.Class
 import qualified Crypto.Hash.SHA3 as SHA3
 import Crypto.Types.PubKey.ECC
 import Data.Binary
@@ -154,7 +156,26 @@ dataToPacket msg =
       typeToPacket 3 (RLPArray [target, timestamp]) = FindNeighbors (rlpDecode target) (rlpDecode timestamp)
       typeToPacket 4 (RLPArray [RLPArray neighbors, timestamp]) = Neighbors (map rlpDecode neighbors) (rlpDecode timestamp)
                    
-                                                                                     
+sendPacket::Socket->H.PrvKey->SockAddr->NodeDiscoveryPacket->IO ()
+sendPacket sock prv addr packet = do
+  let (theType', theRLP) = ndPacketToRLP packet
+
+      theData = B.unpack $ rlpSerialize theRLP
+      SHA theMsgHash = hash $ B.pack $ (theType':theData)
+
+  ExtendedSignature signature' yIsOdd' <- liftIO $ H.withSource H.devURandom $ extSignMsg theMsgHash prv
+
+  let v' = if yIsOdd' then 1 else 0
+      r' = H.sigR signature'
+      s' = H.sigS signature'
+      theSignature = word256ToBytes (fromIntegral r') ++ word256ToBytes (fromIntegral s') ++ [v']
+      theHash = B.unpack $ SHA3.hash 256 $ B.pack $ theSignature ++ [theType'] ++ theData
+                                                                                                                      
+  _ <- liftIO $ NB.sendTo sock ( B.pack $ theHash ++ theSignature ++ [theType'] ++ theData) addr
+
+  return ()
+         
+                                                                  
 
 processDataStream'::[Word8]->IO H.PubKey
 processDataStream'
@@ -223,9 +244,9 @@ getServerPubKey myPriv domain port = do
               word256ToBytes (fromIntegral r) ++ word256ToBytes (fromIntegral s) ++ [v]
             theHash = B.unpack $ SHA3.hash 256 $ B.pack $ theSignature ++ [theType] ++ theData
                     
-        _ <- B.send socket' $ B.pack $ theHash ++ theSignature ++ [theType] ++ theData
+        _ <- NB.send socket' $ B.pack $ theHash ++ theSignature ++ [theType] ++ theData
 
-        pubKey <- B.recv socket' 2000 >>= processDataStream' . B.unpack
+        pubKey <- NB.recv socket' 2000 >>= processDataStream' . B.unpack
         
         return $ hPubKeyToPubKey pubKey
 
@@ -259,11 +280,11 @@ findNeighbors myPriv domain port = do
 
         putStrLn "before"
                     
-        _ <- B.send socket' $ B.pack $ theHash ++ theSignature ++ [theType] ++ theData
+        _ <- NB.send socket' $ B.pack $ theHash ++ theSignature ++ [theType] ++ theData
 
         putStrLn "after"
 
-        pubKey <- B.recv socket' 10 >>= print -- processDataStream' . B.unpack
+        pubKey <- NB.recv socket' 10 >>= print -- processDataStream' . B.unpack
 
         print pubKey
 

@@ -56,33 +56,15 @@ udpHandshakeServer :: (HasSQLDB m, MonadResource m, MonadBaseControl IO m, Monad
                    => H.PrvKey 
                    -> S.Socket
                    -> m ()
-udpHandshakeServer prv conn = do
-   (msg,addr) <- liftIO $ NB.recvFrom conn 1280  -- liftIO unavoidable?
+udpHandshakeServer prv sock = do
+   (msg,addr) <- liftIO $ NB.recvFrom sock 1280  -- liftIO unavoidable?
 
    let (packet, otherPubkey) = dataToPacket msg
    liftIO $ putStrLn $ "Message Received from " ++ show otherPubkey
    liftIO $ print $ dataToPacket msg
                  
    let ip = sockAddrToIP addr
-
-   time <- liftIO $ round `fmap` getPOSIXTime
-
-   let (theType', theRLP) = ndPacketToRLP $
-                                (Pong (Endpoint "127.0.0.1" 30303 30303) 4 (time+50):: NodeDiscoveryPacket)
-                                
-       theData = B.unpack $ rlpSerialize theRLP
-       SHA theMsgHash = hash $ B.pack $ (theType':theData)
-
-   ExtendedSignature signature' yIsOdd' <- liftIO $ H.withSource H.devURandom $ ecdsaSign  prv theMsgHash
-
-   let v' = if yIsOdd' then 1 else 0 
-       r' = H.sigR signature'
-       s' = H.sigS signature'
-       theSignature = word256ToBytes (fromIntegral r') ++ word256ToBytes (fromIntegral s') ++ [v']
-       theHash = B.unpack $ SHA3.hash 256 $ B.pack $ theSignature ++ [theType'] ++ theData
-   
    curTime <- liftIO $ getCurrentTime
- 
    let peer = PPeer {
               pPeerPubkey = hPubKeyToPubKey $ otherPubkey,
               pPeerIp = T.pack ip,
@@ -94,9 +76,9 @@ udpHandshakeServer prv conn = do
               pPeerLastBestBlockHash = SHA 0,
               pPeerVersion = T.pack "61" -- fix
             }
- 
    _ <- addPeer $ peer
-   _ <- liftIO $ NB.sendTo conn ( B.pack $ theHash ++ theSignature ++ [theType'] ++ theData) addr
-   
-   udpHandshakeServer prv conn
-   return () 
+        
+   time <- liftIO $ round `fmap` getPOSIXTime
+   liftIO $ sendPacket sock prv addr $ Pong (Endpoint "127.0.0.1" 30303 30303) 4 (time+50)
+        
+   udpHandshakeServer prv sock
