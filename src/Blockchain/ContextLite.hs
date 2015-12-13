@@ -17,7 +17,6 @@ import Blockchain.DB.SQLDB
 import Blockchain.Data.DataDefs
 
 import qualified Database.Persist.Postgresql as SQL
-import qualified Database.PostgreSQL.Simple as PS
 
 import qualified Data.Text as T
 
