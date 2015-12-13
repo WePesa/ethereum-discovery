@@ -7,7 +7,8 @@ module Blockchain.UDP (
   findNeighbors,
   ndPacketToRLP,
   NodeDiscoveryPacket(..),
-  Endpoint(..)
+  Endpoint(..),
+  NodeID(..)
   ) where
 
 import Network.Socket
@@ -58,17 +59,29 @@ data NodeDiscoveryPacket =
   FindNeighbors NodeID Integer |
   Neighbors [Neighbor] Integer deriving (Show,Read,Eq)
 
+instance Format NodeDiscoveryPacket where
+    format (Neighbors neighbors timeout) = "Neighbors: \n" ++ unlines (map (("    " ++) . format) neighbors)
+    format x = show x
+            
 data Endpoint = Endpoint String Word16 Word16 deriving (Show,Read,Eq)
+
+instance Format Endpoint where
+    format (Endpoint address udpPort tcpPort) = address ++ ":" ++ show udpPort ++ "/" ++ show tcpPort
+              
 data Neighbor = Neighbor Endpoint NodeID deriving (Show,Read,Eq)
 
+instance Format Neighbor where
+    format (Neighbor endpoint nodeID) = format endpoint ++ ", " ++ format nodeID
 
 instance RLPSerializable Endpoint where
     rlpEncode (Endpoint address udpPort tcpPort) = RLPArray [rlpEncode address, rlpEncode udpPort, rlpEncode tcpPort]
     rlpDecode (RLPArray [address, udpPort, tcpPort]) = Endpoint (rlpDecode address) (rlpDecode udpPort) (rlpDecode tcpPort)
-              
+    rlpDecode x = error $ "unsupported rlp in rlpDecode for Endpoint: " ++ show x
+                                                       
 instance RLPSerializable Neighbor where
     rlpEncode (Neighbor endpoint nodeID) = RLPArray [rlpEncode endpoint, rlpEncode nodeID]
-    rlpDecode (RLPArray [endpoint, nodeID]) = Neighbor (rlpDecode endpoint) (rlpDecode nodeID)
+    rlpDecode (RLPArray [address, udpPort, tcpPort, nodeID]) = Neighbor (Endpoint (rlpDecode address) (rlpDecode udpPort) (rlpDecode tcpPort)) (rlpDecode nodeID)
+    rlpDecode x = error $ "unsupported rlp in rlpDecode for Neighbor: " ++ show x
               
 
 {-
@@ -109,7 +122,7 @@ ndPacketToRLP (FindNeighbors target expiration) = (3, RLPArray [rlpEncode target
 
 ndPacketToRLP (Neighbors neighbors expiration) = (4, RLPArray [RLPArray $ map rlpEncode neighbors, rlpEncode expiration])
 
-ndPacketToRLP x = error $ "Unsupported case in call to ndPacketToRLP: " ++ show x
+--ndPacketToRLP x = error $ "Unsupported case in call to ndPacketToRLP: " ++ show x
 
 
 
@@ -155,9 +168,11 @@ dataToPacket msg =
       typeToPacket 2 (RLPArray [to, echo, timestamp]) = Pong (rlpDecode to) (rlpDecode echo) (rlpDecode timestamp)
       typeToPacket 3 (RLPArray [target, timestamp]) = FindNeighbors (rlpDecode target) (rlpDecode timestamp)
       typeToPacket 4 (RLPArray [RLPArray neighbors, timestamp]) = Neighbors (map rlpDecode neighbors) (rlpDecode timestamp)
-                   
+      typeToPacket x y = error $ "Unsupported case called in typeToPacket: " ++ show x ++ ", " ++ show y
+                                                                  
 sendPacket::Socket->H.PrvKey->SockAddr->NodeDiscoveryPacket->IO ()
 sendPacket sock prv addr packet = do
+  putStrLn $ "Sending packet: " ++ show packet ++ ", " ++ show addr
   let (theType', theRLP) = ndPacketToRLP packet
 
       theData = B.unpack $ rlpSerialize theRLP
@@ -212,6 +227,7 @@ newtype NodeID = NodeID B.ByteString deriving (Show, Read, Eq)
 instance RLPSerializable NodeID where
   rlpEncode (NodeID x) = RLPString x
   rlpDecode (RLPString x) = NodeID x
+  rlpDecode x = error $ "unsupported rlp in rlpDecode for NodeID: " ++ show x
 
 instance Format NodeID where
   format (NodeID x) = BC.unpack $ B16.encode x

@@ -1,37 +1,29 @@
 {-# LANGUAGE OverloadedStrings          #-}
 
-
-
 import Control.Exception
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Resource
-import qualified Data.ByteString.Char8 as BC
+import Data.Maybe
 import qualified Network.Socket as S
+import qualified Network.Haskoin.Internals as H
     
 import Blockchain.ContextLite
 import Blockchain.UDPServer
 
-
-
-connStr :: BC.ByteString
-connStr = "host=localhost dbname=eth user=postgres password=api port=5432"
-
-
-privateKey :: Integer
-privateKey =  0xac3e8ce2ef31c3f45d5da860bcd9aee4b37a05c5a3ddee40dd061620c3dab380
+privateKey :: H.PrvKey
+privateKey = fromMaybe (error "Bad value for hardcoded private key in Main.hs") $ H.makePrvKey 0xac3e8ce2ef31c3f45d5da860bcd9aee4b37a05c5a3ddee40dd061620c3dab380
 
 listenPort::Int
-listenPort = 30303
+listenPort = 30302
     
+main::IO ()
 main = do
   putStrLn "Starting Discovery daemon"
 
-  let myPriv = privateKey
-  
   _ <- runResourceT $ do
          cxt <- initContextLite
-         
-         liftIO $ S.withSocketsDo $ bracket (connectMe listenPort) S.sClose (runEthUDPServer cxt myPriv)
+
+         liftIO $ S.withSocketsDo $ bracket (connectMe privateKey listenPort) S.sClose (runEthUDPServer cxt privateKey)
 
 
   return ()
