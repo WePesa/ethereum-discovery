@@ -8,6 +8,7 @@ module Blockchain.UDP (
   ndPacketToRLP,
   NodeDiscoveryPacket(..),
   Endpoint(..),
+  Neighbor(..),
   NodeID(..),
   IAddr(..),
   getHostAddress

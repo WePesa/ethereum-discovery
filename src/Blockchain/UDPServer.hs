@@ -87,7 +87,7 @@ udpHandshakeServer prv sock = do
                  let peer = PPeer {
                                 pPeerPubkey = hPubKeyToPubKey $ otherPubkey,
                                 pPeerIp = T.pack ip,
-                                pPeerPort = 30305, -- change 
+                                pPeerPort = fromIntegral $ getAddrPort addr,
                                 pPeerNumSessions = 0,
                                 pPeerLastTotalDifficulty = 0,
                                 pPeerLastMsg  = T.pack "msg",
@@ -95,7 +95,7 @@ udpHandshakeServer prv sock = do
                                 pPeerLastBestBlockHash = SHA 0,
                                 pPeerVersion = T.pack "61" -- fix
                               }
-                 _ <- addPeer $ peer
+                 _ <- addPeer peer
         
                  time <- liftIO $ round `fmap` getPOSIXTime
                  peerAddr <- fmap IPV4Addr $ liftIO $ inet_addr "127.0.0.1"
@@ -108,7 +108,28 @@ udpHandshakeServer prv sock = do
                  liftIO $ sendPacket sock prv addr $ Neighbors [] (time + 50)
                  liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
                         
-     Neighbors _ _ -> return ()
+     Neighbors neighbors _ -> do
+                 forM_ neighbors $ \(Neighbor (Endpoint addr udpPort tcpPort) nodeID) -> do
+                                curTime <- liftIO $ getCurrentTime
+                                let peer = PPeer {
+                                             pPeerPubkey = hPubKeyToPubKey $ otherPubkey,
+                                             pPeerIp = T.pack $ format addr,
+                                             pPeerPort = fromIntegral tcpPort,
+                                             pPeerNumSessions = 0,
+                                             pPeerLastTotalDifficulty = 0,
+                                             pPeerLastMsg  = T.pack "msg",
+                                             pPeerLastMsgTime = curTime,
+                                             pPeerLastBestBlockHash = SHA 0,
+                                             pPeerVersion = T.pack "61" -- fix
+                                           }
+                                _ <- addPeer peer
+                     
+                                return ()
 
                         
    udpHandshakeServer prv sock
+
+getAddrPort::SockAddr->PortNumber
+getAddrPort (SockAddrInet portNumber _) = portNumber
+getAddrPort (SockAddrInet6 portNumber _ _ _) = portNumber
+getAddrPort _ = error $ "getAddrPort called for address that doesn't have a port"
