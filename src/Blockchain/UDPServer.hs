@@ -58,7 +58,7 @@ connectMe prv port = do
   (peeraddr:_) <- getAddrInfo Nothing (Just "127.0.0.1") (Just "30303")
   sock2 <- socket (addrFamily peeraddr) Datagram defaultProtocol
                                
-  liftIO $ sendPacket sock prv (addrAddress peeraddr) $ Ping 4 (Endpoint "127.0.0.1" 30302 30302) (Endpoint "poc-9.ethdev.com" 30303 30303) (time+50)
+  liftIO $ sendPacket sock prv (addrAddress peeraddr) $ Ping 4 (Endpoint (getHostAddress $ addrAddress serveraddr) 30302 30302) (Endpoint (getHostAddress $ addrAddress peeraddr) 30303 30303) (time+50)
                    
   return sock
          
@@ -71,7 +71,6 @@ udpHandshakeServer :: (HasSQLDB m, MonadResource m, MonadBaseControl IO m, Monad
                    -> Socket
                    -> m ()
 udpHandshakeServer prv sock = do
-   liftIO $ putStrLn "Waiting for next message"
    (msg,addr) <- liftIO $ NB.recvFrom sock 1280  -- liftIO unavoidable?
 
    let (packet, otherPubkey) = dataToPacket msg
@@ -79,7 +78,7 @@ udpHandshakeServer prv sock = do
 
    --liftIO $ putStrLn $ "Message Received from " ++ (show $ B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey $ fromMaybe (error "invalid private number in main") $ H.makePrvKey $ fromIntegral otherPubkey)
 
-   liftIO $ putStrLn $ format $ fst $ dataToPacket msg
+   liftIO $ putStrLn $ "     --" ++ format (fst $ dataToPacket msg)
 
    case packet of
      Ping _ _ _ _ -> do
@@ -99,7 +98,8 @@ udpHandshakeServer prv sock = do
                  _ <- addPeer $ peer
         
                  time <- liftIO $ round `fmap` getPOSIXTime
-                 liftIO $ sendPacket sock prv addr $ Pong (Endpoint "127.0.0.1" 30302 30302) 4 (time+50)
+                 peerAddr <- fmap IPV4Addr $ liftIO $ inet_addr "127.0.0.1"
+                 liftIO $ sendPacket sock prv addr $ Pong (Endpoint peerAddr 30302 30302) 4 (time+50)
 
      Pong _ _ _ -> return ()
 

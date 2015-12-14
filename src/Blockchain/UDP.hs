@@ -8,7 +8,9 @@ module Blockchain.UDP (
   ndPacketToRLP,
   NodeDiscoveryPacket(..),
   Endpoint(..),
-  NodeID(..)
+  NodeID(..),
+  IAddr(..),
+  getHostAddress
   ) where
 
 import Network.Socket
@@ -19,12 +21,14 @@ import Control.Monad.IO.Class
 import qualified Crypto.Hash.SHA3 as SHA3
 import Crypto.Types.PubKey.ECC
 import Data.Binary
+import Data.Bits
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as BC
 import Data.Maybe
 import qualified Network.Haskoin.Internals as H
-
+import Numeric
+    
 import Blockchain.Data.RLP
 import Blockchain.ExtendedECDSA
 import Blockchain.ExtWord
@@ -60,13 +64,36 @@ data NodeDiscoveryPacket =
   Neighbors [Neighbor] Integer deriving (Show,Read,Eq)
 
 instance Format NodeDiscoveryPacket where
-    format (Neighbors neighbors timeout) = "Neighbors: \n" ++ unlines (map (("    " ++) . format) neighbors)
+    format (Ping _ from to _) = "Ping from: " ++ format from ++ " to: " ++ format to
+    format (Pong to _ _) = "Pong to: " ++ format to
+    format (FindNeighbors nodeID _) = "FindNeighbors " ++ format nodeID
+    format (Neighbors neighbors _) = "Neighbors: \n" ++ unlines (map (("    " ++) . format) neighbors)
     format x = show x
-            
-data Endpoint = Endpoint String Word16 Word16 deriving (Show,Read,Eq)
+
+data IAddr = IPV4Addr HostAddress | IPV6Addr HostAddress6 deriving (Show, Read, Eq)
+
+instance Format IAddr where
+    format (IPV4Addr x) = show (fromIntegral $ x `shiftR` 24::Word8) ++ "." ++ show (fromIntegral $ x `shiftR` 16::Word8) ++ "." ++ show (fromIntegral $ x `shiftR` 8::Word8) ++ "." ++ show (fromIntegral x::Word8)
+    format (IPV6Addr (v1, v2, v3, v4)) =
+        showHex (fromIntegral $ v1 `shiftR` 16::Word16) "" ++ ":" ++
+        showHex (fromIntegral v1::Word16) "" ++ ":" ++
+        showHex (fromIntegral $ v2 `shiftR` 16::Word16) "" ++ ":" ++
+        showHex (fromIntegral v2::Word16) "" ++ ":" ++
+        showHex (fromIntegral $ v3 `shiftR` 16::Word16) "" ++ ":" ++
+        showHex (fromIntegral v3::Word16) "" ++ ":" ++
+        showHex (fromIntegral $ v4 `shiftR` 16::Word16) "" ++ ":" ++
+        showHex (fromIntegral v4::Word16) ""
+           
+instance RLPSerializable IAddr where
+    rlpEncode (IPV4Addr x) = rlpEncode x
+    rlpDecode o@(RLPString s) | B.length s == 4 = IPV4Addr $ rlpDecode o
+    rlpDecode o@(RLPString s) | B.length s == 16 = IPV6Addr $ (fromIntegral word128, fromIntegral $ word128 `shiftR` 32, fromIntegral $ word128 `shiftR` 64, fromIntegral $ word128 `shiftR` 96) --TODO- verify the order of this
+                                                               where word128 = rlpDecode o::Word128
+           
+data Endpoint = Endpoint IAddr Word16 Word16 deriving (Show,Read,Eq)
 
 instance Format Endpoint where
-    format (Endpoint address udpPort tcpPort) = address ++ ":" ++ show udpPort ++ "/" ++ show tcpPort
+    format (Endpoint address udpPort tcpPort) = format address ++ ":" ++ show udpPort ++ "/" ++ show tcpPort
               
 data Neighbor = Neighbor Endpoint NodeID deriving (Show,Read,Eq)
 
@@ -99,6 +126,10 @@ rlpToNDPacket 0x2 (RLPArray [ RLPArray [ ipFrom, udpPortFrom, tcpPortFrom ], rep
 --rlpToNDPacket 0x4 (RLPArray [ip, port, id', expiration]) = Neighbors (rlpDecode ip) (fromInteger $ rlpDecode port) (rlpDecode id') (rlpDecode expiration)
 rlpToNDPacket v x = error $ "Missing case in rlpToNDPacket: " ++ show v ++ ", " ++ show x
 -}
+
+getHostAddress::SockAddr->IAddr
+getHostAddress (SockAddrInet _ x) = IPV4Addr x
+getHostAddress _ = error $ "Unsupported case in sockAddrToHostAddr"
 
 ndPacketToRLP::NodeDiscoveryPacket->(Word8, RLPObject)
 ndPacketToRLP (Ping ver (Endpoint ipFrom udpPortFrom tcpPortFrom) (Endpoint ipTo udpPortTo tcpPortTo) expiration) =
@@ -172,7 +203,7 @@ dataToPacket msg =
                                                                   
 sendPacket::Socket->H.PrvKey->SockAddr->NodeDiscoveryPacket->IO ()
 sendPacket sock prv addr packet = do
-  putStrLn $ "Sending packet: " ++ show packet ++ ", " ++ show addr
+  putStrLn $ "Sending packet: " ++ format packet ++ ", " ++ show addr
   let (theType', theRLP) = ndPacketToRLP packet
 
       theData = B.unpack $ rlpSerialize theRLP
@@ -244,9 +275,11 @@ getServerPubKey myPriv domain port = do
 
       talk::H.PrvKey->Socket->IO Point
       talk prvKey' socket' = do
+        fromAddr <- fmap IPV4Addr $ inet_addr "127.0.0.1"
+        toAddr <- fmap IPV4Addr $ inet_addr "127.0.0.1"
         let (theType, theRLP) =
               ndPacketToRLP $
-              Ping 4 (Endpoint "127.0.0.1" (fromIntegral $ port) 30303) (Endpoint "127.0.0.1" (fromIntegral $ port) 30303) 1451606400
+              Ping 4 (Endpoint fromAddr (fromIntegral $ port) 30303) (Endpoint toAddr (fromIntegral $ port) 30303) 1451606400
             theData = B.unpack $ rlpSerialize theRLP
             SHA theMsgHash = hash $ B.pack $ (theType:theData)
 
