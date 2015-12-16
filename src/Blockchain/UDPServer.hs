@@ -48,18 +48,26 @@ connectMe prv port = do
 --                      Nothing (Just (show port))
   (serveraddr:_) <- getAddrInfo
                       (Just (defaultHints {addrFlags = [AI_PASSIVE]}))
-                      (Just "127.0.0.1") (Just (show port))
+                      Nothing (Just (show port))
   sock <- socket (addrFamily serveraddr) Datagram defaultProtocol
   bindSocket sock (addrAddress serveraddr)
 
   time <- liftIO $ round `fmap` getPOSIXTime
 
-  --(peeraddr:_) <- getAddrInfo Nothing (Just "poc-9.ethdev.com") (Just "30303")
-  (peeraddr:_) <- getAddrInfo Nothing (Just "127.0.0.1") (Just "30303")
-  sock2 <- socket (addrFamily peeraddr) Datagram defaultProtocol
-                               
+  let bootstrapAddr = "52.16.188.185"
+      bootstrapPort = "30303"
+--  let bootstrapAddr = "poc-9.ethdev.com"
+--      bootstrapPort = "30303"
+--  let bootstrapAddr = "127.0.0.1"
+--      bootstrapPort = "30303"
+          
+  (peeraddr:_) <- getAddrInfo Nothing (Just bootstrapAddr) (Just bootstrapPort)
+--  sock2 <- socket (addrFamily peeraddr) Datagram defaultProtocol
+
+  putStrLn "before"
   liftIO $ sendPacket sock prv (addrAddress peeraddr) $ Ping 4 (Endpoint (getHostAddress $ addrAddress serveraddr) 30302 30302) (Endpoint (getHostAddress $ addrAddress peeraddr) 30303 30303) (time+50)
-                   
+  putStrLn "after"
+         
   return sock
          
 pointToBytes::Point->[Word8]

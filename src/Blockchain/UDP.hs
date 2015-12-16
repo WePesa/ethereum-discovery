@@ -74,16 +74,18 @@ instance Format NodeDiscoveryPacket where
 data IAddr = IPV4Addr HostAddress | IPV6Addr HostAddress6 deriving (Show, Read, Eq)
 
 instance Format IAddr where
-    format (IPV4Addr x) = show (fromIntegral $ x `shiftR` 24::Word8) ++ "." ++ show (fromIntegral $ x `shiftR` 16::Word8) ++ "." ++ show (fromIntegral $ x `shiftR` 8::Word8) ++ "." ++ show (fromIntegral x::Word8)
+    format (IPV4Addr x) = show (fromIntegral x::Word8) ++ "." ++ show (fromIntegral $ x `shiftR` 8::Word8) ++ "." ++ show (fromIntegral $ x `shiftR` 16::Word8) ++ "." ++ show (fromIntegral $ x `shiftR` 24::Word8)
     format (IPV6Addr (v1, v2, v3, v4)) =
-        showHex (fromIntegral $ v1 `shiftR` 16::Word16) "" ++ ":" ++
-        showHex (fromIntegral v1::Word16) "" ++ ":" ++
-        showHex (fromIntegral $ v2 `shiftR` 16::Word16) "" ++ ":" ++
-        showHex (fromIntegral v2::Word16) "" ++ ":" ++
+        showHex (fromIntegral $ v4 `shiftR` 16::Word16) "" ++ ":" ++
+        showHex (fromIntegral v4::Word16) "" ++ ":" ++
         showHex (fromIntegral $ v3 `shiftR` 16::Word16) "" ++ ":" ++
         showHex (fromIntegral v3::Word16) "" ++ ":" ++
-        showHex (fromIntegral $ v4 `shiftR` 16::Word16) "" ++ ":" ++
-        showHex (fromIntegral v4::Word16) ""
+        showHex (fromIntegral $ v2 `shiftR` 16::Word16) "" ++ ":" ++
+        showHex (fromIntegral v2::Word16) "" ++ ":" ++
+        showHex (fromIntegral $ v1 `shiftR` 16::Word16) "" ++ ":" ++
+        showHex (fromIntegral v1::Word16) ""
+
+
            
 instance RLPSerializable IAddr where
     rlpEncode (IPV4Addr x) = rlpEncode x
@@ -204,7 +206,7 @@ dataToPacket msg =
                                                                   
 sendPacket::Socket->H.PrvKey->SockAddr->NodeDiscoveryPacket->IO ()
 sendPacket sock prv addr packet = do
-  putStrLn $ "Sending packet: " ++ format packet ++ ", " ++ show addr
+  putStrLn $ "Sending packet to " ++ show addr ++ ": " ++ format packet
   let (theType', theRLP) = ndPacketToRLP packet
 
       theData = B.unpack $ rlpSerialize theRLP
