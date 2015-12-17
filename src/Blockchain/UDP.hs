@@ -29,6 +29,7 @@ import qualified Data.ByteString.Char8 as BC
 import Data.Maybe
 import qualified Network.Haskoin.Internals as H
 import Numeric
+import System.Endian
     
 import Blockchain.Data.RLP
 import Blockchain.ExtendedECDSA
@@ -89,7 +90,7 @@ instance Format IAddr where
            
 instance RLPSerializable IAddr where
     rlpEncode (IPV4Addr x) = rlpEncode x
-    rlpDecode o@(RLPString s) | B.length s == 4 = IPV4Addr $ rlpDecode o
+    rlpDecode o@(RLPString s) | B.length s == 4 = IPV4Addr $ fromBE32 $ rlpDecode o
     rlpDecode o@(RLPString s) | B.length s == 16 = IPV6Addr $ (fromIntegral word128, fromIntegral $ word128 `shiftR` 32, fromIntegral $ word128 `shiftR` 64, fromIntegral $ word128 `shiftR` 96) --TODO- verify the order of this
                                                                where word128 = rlpDecode o::Word128
            
@@ -132,7 +133,7 @@ rlpToNDPacket v x = error $ "Missing case in rlpToNDPacket: " ++ show v ++ ", " 
 
 getHostAddress::SockAddr->IAddr
 getHostAddress (SockAddrInet _ x) = IPV4Addr x
-getHostAddress _ = error $ "Unsupported case in sockAddrToHostAddr"
+getHostAddress x = error $ "Unsupported case in sockAddrToHostAddr: " ++ show x
 
 ndPacketToRLP::NodeDiscoveryPacket->(Word8, RLPObject)
 ndPacketToRLP (Ping ver (Endpoint ipFrom udpPortFrom tcpPortFrom) (Endpoint ipTo udpPortTo tcpPortTo) expiration) =

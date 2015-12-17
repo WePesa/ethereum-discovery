@@ -14,6 +14,7 @@ executable ethereum-discover
                      , blockapps-data
                      , blockapps-util
                      , bytestring
+                     , cpu
                      , cryptohash
                      , crypto-pubkey
                      , crypto-pubkey-types
