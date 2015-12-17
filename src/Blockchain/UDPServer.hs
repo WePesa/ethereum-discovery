@@ -40,9 +40,9 @@ runEthUDPServer cxt myPriv sock = do
   _ <- runResourceT $ flip runStateT cxt $ udpHandshakeServer myPriv sock
   return ()
 
-connectMe :: H.PrvKey->Int 
+connectMe::String->String->H.PrvKey->Int 
           -> IO Socket
-connectMe prv port = do
+connectMe bootstrapAddr bootstrapPort prv port = do
 --  (serveraddr:_) <- getAddrInfo
 --                      (Just (defaultHints {addrFlags = [AI_PASSIVE]}))
 --                      Nothing (Just (show port))
@@ -54,8 +54,8 @@ connectMe prv port = do
 
   time <- liftIO $ round `fmap` getPOSIXTime
 
-  let bootstrapAddr = "52.16.188.185"
-      bootstrapPort = "30303"
+--  let bootstrapAddr = "52.16.188.185"
+--      bootstrapPort = "30303"
 --  let bootstrapAddr = "poc-9.ethdev.com"
 --      bootstrapPort = "30303"
 --  let bootstrapAddr = "127.0.0.1"
@@ -64,9 +64,7 @@ connectMe prv port = do
   (peeraddr:_) <- getAddrInfo Nothing (Just bootstrapAddr) (Just bootstrapPort)
 --  sock2 <- socket (addrFamily peeraddr) Datagram defaultProtocol
 
-  putStrLn "before"
   liftIO $ sendPacket sock prv (addrAddress peeraddr) $ Ping 4 (Endpoint (getHostAddress $ addrAddress serveraddr) 30302 30302) (Endpoint (getHostAddress $ addrAddress peeraddr) 30303 30303) (time+50)
-  putStrLn "after"
          
   return sock
          
@@ -112,6 +110,7 @@ udpHandshakeServer prv sock = do
      Pong _ _ _ -> do
                  time <- liftIO $ round `fmap` getPOSIXTime
                  liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
+                 --liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey prv) (time + 50)
 
      FindNeighbors _ _ -> do
                  time <- liftIO $ round `fmap` getPOSIXTime
