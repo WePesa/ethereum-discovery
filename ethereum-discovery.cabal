@@ -20,7 +20,7 @@ executable ethereum-discover
                      , crypto-pubkey-types
                      , ethereum-rlp
                      , haskoin
-                     , monads-tf
+                     , mtl
                      , network
                      , persistent-postgresql
                      , postgresql-simple
