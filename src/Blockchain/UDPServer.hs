@@ -12,13 +12,11 @@ import qualified Network.Socket.ByteString as NB
 import           Control.Monad.IO.Class
 import           Control.Monad.State
 import           Control.Monad.Trans.Resource
-import Crypto.PubKey.ECC.DH
 import Crypto.Types.PubKey.ECC
 --import Crypto.Random
             
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Base16 as B16
-import Data.Maybe
 import           Data.Time.Clock.POSIX
 import           Data.Time.Clock
 import qualified Data.Text as T
@@ -118,11 +116,11 @@ udpHandshakeServer prv sock = do
                  liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
                         
      Neighbors neighbors _ -> do
-                 forM_ neighbors $ \(Neighbor (Endpoint addr udpPort tcpPort) nodeID) -> do
+                 forM_ neighbors $ \(Neighbor (Endpoint addr' _ tcpPort) _) -> do
                                 curTime <- liftIO $ getCurrentTime
                                 let peer = PPeer {
                                              pPeerPubkey = hPubKeyToPubKey $ otherPubkey,
-                                             pPeerIp = T.pack $ format addr,
+                                             pPeerIp = T.pack $ format addr',
                                              pPeerPort = fromIntegral tcpPort,
                                              pPeerNumSessions = 0,
                                              pPeerLastTotalDifficulty = 0,

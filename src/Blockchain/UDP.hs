@@ -70,7 +70,6 @@ instance Format NodeDiscoveryPacket where
     format (Pong to _ _) = "Pong to: " ++ format to
     format (FindNeighbors nodeID _) = "FindNeighbors " ++ format nodeID
     format (Neighbors neighbors _) = "Neighbors: \n" ++ unlines (map (("    " ++) . format) neighbors)
-    format x = show x
 
 data IAddr = IPV4Addr HostAddress | IPV6Addr HostAddress6 deriving (Show, Read, Eq)
 
@@ -90,10 +89,12 @@ instance Format IAddr where
            
 instance RLPSerializable IAddr where
     rlpEncode (IPV4Addr x) = rlpEncode x
+    rlpEncode x = error $ "case not yet covered for rlpEncode for IAddr: " ++ show x
     rlpDecode o@(RLPString s) | B.length s == 4 = IPV4Addr $ fromBE32 $ rlpDecode o
     rlpDecode o@(RLPString s) | B.length s == 16 = IPV6Addr $ (fromIntegral word128, fromIntegral $ word128 `shiftR` 32, fromIntegral $ word128 `shiftR` 64, fromIntegral $ word128 `shiftR` 96) --TODO- verify the order of this
                                                                where word128 = rlpDecode o::Word128
-           
+    rlpDecode x = error $ "bad type for rlpDecode for IAddr: " ++ show x
+                                                                               
 data Endpoint = Endpoint IAddr Word16 Word16 deriving (Show,Read,Eq)
 
 instance Format Endpoint where
