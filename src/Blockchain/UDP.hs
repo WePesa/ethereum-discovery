@@ -10,6 +10,7 @@ module Blockchain.UDP (
   Endpoint(..),
   Neighbor(..),
   NodeID(..),
+  nodeIDToPoint,
   IAddr(..),
   getHostAddress
   ) where
@@ -36,6 +37,7 @@ import Blockchain.ExtendedECDSA
 import Blockchain.ExtWord
 import Blockchain.Format
 import Blockchain.SHA
+import Blockchain.Util
 
 --import Debug.Trace
 
@@ -260,6 +262,13 @@ processDataStream' _ = error "processDataStream' called with too few bytes"
 
 newtype NodeID = NodeID B.ByteString deriving (Show, Read, Eq)
 
+nodeIDToPoint::NodeID->Point
+nodeIDToPoint (NodeID nodeID) | B.length nodeID /= 64 = error "NodeID contains a bytestring that is not 64 bytes long"
+nodeIDToPoint (NodeID nodeID) = Point x y
+    where
+      x = byteString2Integer $ B.take 32 nodeID
+      y = byteString2Integer $ B.drop 32 nodeID
+                                                        
 instance RLPSerializable NodeID where
   rlpEncode (NodeID x) = RLPString x
   rlpDecode (RLPString x) = NodeID x

@@ -116,10 +116,10 @@ udpHandshakeServer prv sock = do
                  liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
                         
      Neighbors neighbors _ -> do
-                 forM_ neighbors $ \(Neighbor (Endpoint addr' _ tcpPort) _) -> do
+                 forM_ neighbors $ \(Neighbor (Endpoint addr' _ tcpPort) nodeID) -> do
                                 curTime <- liftIO $ getCurrentTime
                                 let peer = PPeer {
-                                             pPeerPubkey = hPubKeyToPubKey $ otherPubkey,
+                                             pPeerPubkey = nodeIDToPoint nodeID,
                                              pPeerIp = T.pack $ format addr',
                                              pPeerPort = fromIntegral tcpPort,
                                              pPeerNumSessions = 0,
