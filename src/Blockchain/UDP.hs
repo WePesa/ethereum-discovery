@@ -27,6 +27,7 @@ import Data.Bits
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as BC
+import Data.List.Split
 import Data.Maybe
 import qualified Network.Haskoin.Internals as H
 import Numeric
@@ -88,13 +89,21 @@ instance Format IAddr where
         showHex (fromIntegral v1::Word16) ""
 
 
-           
+
+-- odd that this doesn't exist, but so says reddit- https://www.reddit.com/r/haskellquestions/comments/331lot/simple_preferably_pure_way_to_create_hostaddress/
+stringToIAddr::String->IAddr
+stringToIAddr x | '.' `elem` x =
+                    IPV4Addr $ (a `shift` 24) + (b `shift` 16) + (c `shift` 8) + d
+  where [a,b,c,d] = map read $ splitOn "." x
+stringToIAddr x = error $ "bad format in stringToIAddr: " ++ show x
+
 instance RLPSerializable IAddr where
     rlpEncode (IPV4Addr x) = rlpEncode x
     rlpEncode x = error $ "case not yet covered for rlpEncode for IAddr: " ++ show x
     rlpDecode o@(RLPString s) | B.length s == 4 = IPV4Addr $ fromBE32 $ rlpDecode o
     rlpDecode o@(RLPString s) | B.length s == 16 = IPV6Addr $ (fromIntegral word128, fromIntegral $ word128 `shiftR` 32, fromIntegral $ word128 `shiftR` 64, fromIntegral $ word128 `shiftR` 96) --TODO- verify the order of this
                                                                where word128 = rlpDecode o::Word128
+    rlpDecode (RLPString s) = stringToIAddr $ BC.unpack s  --what a mess!  Sometimes address is array of address bytes, sometimes a string representation of the address.  I need to figure this out someday
     rlpDecode x = error $ "bad type for rlpDecode for IAddr: " ++ show x
                                                                                
 data Endpoint = Endpoint IAddr Word16 Word16 deriving (Show,Read,Eq)
@@ -109,6 +118,7 @@ instance Format Neighbor where
 
 instance RLPSerializable Endpoint where
     rlpEncode (Endpoint address udpPort tcpPort) = RLPArray [rlpEncode address, rlpEncode udpPort, rlpEncode tcpPort]
+--    rlpDecode (RLPArray [address, udpPort, tcpPort]) = Endpoint (stringToIAddr $ rlpDecode address) (rlpDecode udpPort) (rlpDecode tcpPort)
     rlpDecode (RLPArray [address, udpPort, tcpPort]) = Endpoint (rlpDecode address) (rlpDecode udpPort) (rlpDecode tcpPort)
     rlpDecode x = error $ "unsupported rlp in rlpDecode for Endpoint: " ++ show x
                                                        

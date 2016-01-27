@@ -25,6 +25,7 @@ executable ethereum-discover
                      , persistent-postgresql
                      , postgresql-simple
                      , resourcet
+                     , split
                      , text
                      , time
                      , transformers

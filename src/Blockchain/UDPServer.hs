@@ -62,7 +62,7 @@ connectMe bootstrapAddr bootstrapPort prv port = do
   (peeraddr:_) <- getAddrInfo Nothing (Just bootstrapAddr) (Just bootstrapPort)
 --  sock2 <- socket (addrFamily peeraddr) Datagram defaultProtocol
 
-  liftIO $ sendPacket sock prv (addrAddress peeraddr) $ Ping 4 (Endpoint (getHostAddress $ addrAddress serveraddr) 30302 30302) (Endpoint (getHostAddress $ addrAddress peeraddr) 30303 30303) (time+50)
+  liftIO $ sendPacket sock prv (addrAddress peeraddr) $ Ping 4 (Endpoint (getHostAddress $ addrAddress serveraddr) 30303 30303) (Endpoint (getHostAddress $ addrAddress peeraddr) 30303 30303) (time+50)
          
   return sock
          
@@ -103,7 +103,7 @@ udpHandshakeServer prv sock = do
         
                  time <- liftIO $ round `fmap` getPOSIXTime
                  peerAddr <- fmap IPV4Addr $ liftIO $ inet_addr "127.0.0.1"
-                 liftIO $ sendPacket sock prv addr $ Pong (Endpoint peerAddr 30302 30302) 4 (time+50)
+                 liftIO $ sendPacket sock prv addr $ Pong (Endpoint peerAddr 30303 30303) 4 (time+50)
 
      Pong _ _ _ -> do
                  time <- liftIO $ round `fmap` getPOSIXTime
