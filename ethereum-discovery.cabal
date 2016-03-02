@@ -12,6 +12,7 @@ executable ethereum-discover
   build-depends:       base
                      , base16-bytestring
                      , binary
+                     , blockapps-data-db
                      , blockapps-data
                      , blockapps-util
                      , bytestring
