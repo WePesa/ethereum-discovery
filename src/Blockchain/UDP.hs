@@ -32,6 +32,7 @@ import Data.Maybe
 import qualified Network.Haskoin.Internals as H
 import Numeric
 import System.Endian
+import System.Entropy
     
 import Blockchain.Data.RLP
 import Blockchain.ExtendedECDSA
@@ -226,7 +227,7 @@ sendPacket sock prv addr packet = do
       theData = B.unpack $ rlpSerialize theRLP
       SHA theMsgHash = hash $ B.pack $ (theType':theData)
 
-  ExtendedSignature signature' yIsOdd' <- liftIO $ H.withSource H.devURandom $ extSignMsg theMsgHash prv
+  ExtendedSignature signature' yIsOdd' <- liftIO $ H.withSource getEntropy $ extSignMsg theMsgHash prv
 
   let v' = if yIsOdd' then 1 else 0
       r' = H.sigR signature'
@@ -308,7 +309,7 @@ getServerPubKey myPriv domain port = do
             SHA theMsgHash = hash $ B.pack $ (theType:theData)
 
         ExtendedSignature signature yIsOdd <-
-          H.withSource H.devURandom $ encrypt prvKey' theMsgHash
+          H.withSource getEntropy $ encrypt prvKey' theMsgHash
 
         let v = if yIsOdd then 1 else 0 -- 0x1c else 0x1b
             r = H.sigR signature
@@ -342,7 +343,7 @@ findNeighbors myPriv domain port = do
             SHA theMsgHash = hash $ B.pack $ (theType:theData)
 
         ExtendedSignature signature yIsOdd <-
-          H.withSource H.devURandom $ encrypt prvKey' theMsgHash
+          H.withSource getEntropy $ encrypt prvKey' theMsgHash
 
         let v = if yIsOdd then 1 else 0 -- 0x1c else 0x1b
             r = H.sigR signature
