@@ -22,7 +22,9 @@ import           Data.Time.Clock
 import qualified Data.Text as T
 
 import Data.Word
-    
+
+import System.Entropy
+
 import           Blockchain.Format
 import           Blockchain.UDP
 import           Blockchain.SHA
@@ -107,13 +109,17 @@ udpHandshakeServer prv sock = do
 
      Pong _ _ _ -> do
                  time <- liftIO $ round `fmap` getPOSIXTime
-                 liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
+                 randomBytes <- liftIO $ getEntropy 64
+                 liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID randomBytes) (time + 50)
+                 --liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
                  --liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey prv) (time + 50)
 
      FindNeighbors _ _ -> do
                  time <- liftIO $ round `fmap` getPOSIXTime
                  liftIO $ sendPacket sock prv addr $ Neighbors [] (time + 50)
-                 liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
+                 --liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
+                 randomBytes <- liftIO $ getEntropy 64
+                 liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID randomBytes) (time + 50)
                         
      Neighbors neighbors _ -> do
                  forM_ neighbors $ \(Neighbor (Endpoint addr' _ tcpPort) nodeID) -> do

@@ -19,6 +19,7 @@ executable ethereum-discover
                      , cryptohash
                      , crypto-pubkey
                      , crypto-pubkey-types
+                     , entropy
                      , ethereum-rlp
                      , haskoin
                      , mtl
