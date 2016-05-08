@@ -1,14 +1,17 @@
-{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-import Control.Exception
+import Control.Exception.Lifted
 import Control.Monad.IO.Class
+import Control.Monad.Logger
 import Control.Monad.Trans.Resource
 import Data.Maybe
+import qualified Data.Text as T
 import qualified Network.Socket as S
 import qualified Network.Haskoin.Internals as H
 import System.Environment
     
 import Blockchain.ContextLite
+import Blockchain.Output
 import Blockchain.UDPServer
 
 privateKey :: H.PrvKey
@@ -17,9 +20,8 @@ privateKey = fromMaybe (error "Bad value for hardcoded private key in Main.hs") 
 listenPort::Int
 listenPort = 30303
              
-main::IO ()
-main = do
-  args <- getArgs
+lMain::[String]->LoggingT IO ()
+lMain args = do
           
   let (bootstrapAddr, bootstrapPort) =
        case args of
@@ -27,14 +29,22 @@ main = do
             [] -> ("52.16.188.185", "30303")
             _ -> error "params have wrong format"
 
-  putStrLn $ "Bootstrap address: " ++ bootstrapAddr ++ ":" ++ bootstrapPort
+  logInfoN $ T.pack $ "Bootstrap address: " ++ bootstrapAddr ++ ":" ++ bootstrapPort
             
-  putStrLn "Starting Discovery daemon"
+  logInfoN "Starting Discovery daemon"
 
   _ <- runResourceT $ do
-         cxt <- initContextLite
+    cxt <- initContextLite
 
-         liftIO $ S.withSocketsDo $ bracket (connectMe bootstrapAddr bootstrapPort privateKey listenPort) S.sClose (runEthUDPServer cxt privateKey)
+    bracket
+      (connectMe bootstrapAddr bootstrapPort privateKey listenPort)
+      (liftIO . S.sClose)
+      (runEthUDPServer cxt privateKey)
 
 
   return ()
+
+main :: IO ()
+main = do
+  args <- getArgs
+  S.withSocketsDo $ flip runLoggingT printLogMsg $ lMain args

@@ -20,6 +20,7 @@ import qualified Network.Socket.ByteString as NB
 
 import Control.Exception
 import Control.Monad.IO.Class
+import Control.Monad.Logger
 import qualified Crypto.Hash.SHA3 as SHA3
 import Crypto.Types.PubKey.ECC
 import Data.Binary
@@ -29,6 +30,7 @@ import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as BC
 import Data.List.Split
 import Data.Maybe
+import qualified Data.Text as T
 import qualified Network.Haskoin.Internals as H
 import Numeric
 import System.Endian
@@ -218,9 +220,10 @@ dataToPacket msg =
       typeToPacket 4 (RLPArray [RLPArray neighbors, timestamp]) = Neighbors (map rlpDecode neighbors) (rlpDecode timestamp)
       typeToPacket x y = error $ "Unsupported case called in typeToPacket: " ++ show x ++ ", " ++ show y
                                                                   
-sendPacket::Socket->H.PrvKey->SockAddr->NodeDiscoveryPacket->IO ()
+sendPacket::(MonadIO m, MonadLogger m)=>
+            Socket->H.PrvKey->SockAddr->NodeDiscoveryPacket->m ()
 sendPacket sock prv addr packet = do
-  putStrLn $ "Sending packet to " ++ show addr ++ ": " ++ format packet
+  logInfoN $ T.pack $ "Sending packet to " ++ show addr ++ ": " ++ format packet
   let (theType', theRLP) = ndPacketToRLP packet
 
       theData = B.unpack $ rlpSerialize theRLP
@@ -351,20 +354,13 @@ findNeighbors myPriv domain port = do
               word256ToBytes (fromIntegral r) ++ word256ToBytes (fromIntegral s) ++ [v]
             theHash = B.unpack $ SHA3.hash 256 $ B.pack $ theSignature ++ [theType] ++ theData
 
-        putStrLn "before"
-                    
         _ <- NB.send socket' $ B.pack $ theHash ++ theSignature ++ [theType] ++ theData
-
-        putStrLn "after"
 
         pubKey <- NB.recv socket' 10 >>= print -- processDataStream' . B.unpack
 
-        print pubKey
-
-        putStrLn "after recv"
-        
         --return $ hPubKeyToPubKey pubKey
 
+        return ()
 
 
 

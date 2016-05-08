@@ -10,6 +10,7 @@ import Network.Socket
 import qualified Network.Socket.ByteString as NB
 
 import           Control.Monad.IO.Class
+import           Control.Monad.Logger
 import           Control.Monad.State
 import           Control.Monad.Trans.Resource
 import Crypto.Types.PubKey.ECC
@@ -35,22 +36,23 @@ import           Blockchain.P2PUtil
                       
 import qualified Network.Haskoin.Internals as H
     
-runEthUDPServer::ContextLite->H.PrvKey->Socket->IO ()
+runEthUDPServer::(MonadIO m, MonadThrow m, MonadBaseControl IO m, MonadLogger m)=>
+                 ContextLite->H.PrvKey->Socket->m ()
 runEthUDPServer cxt myPriv sock = do
   _ <- runResourceT $ flip runStateT cxt $ udpHandshakeServer myPriv sock
   return ()
 
-connectMe::String->String->H.PrvKey->Int 
-          -> IO Socket
+connectMe::(MonadIO m, MonadLogger m)=>
+           String->String->H.PrvKey->Int->m Socket
 connectMe bootstrapAddr bootstrapPort prv port = do
 --  (serveraddr:_) <- getAddrInfo
 --                      (Just (defaultHints {addrFlags = [AI_PASSIVE]}))
 --                      Nothing (Just (show port))
-  (serveraddr:_) <- getAddrInfo
-                      (Just (defaultHints {addrFlags = [AI_PASSIVE]}))
-                      Nothing (Just (show port))
-  sock <- socket (addrFamily serveraddr) Datagram defaultProtocol
-  bindSocket sock (addrAddress serveraddr)
+  (serveraddr:_) <- liftIO $ getAddrInfo
+                                  (Just (defaultHints {addrFlags = [AI_PASSIVE]}))
+                                  Nothing (Just (show port))
+  sock <- liftIO $ socket (addrFamily serveraddr) Datagram defaultProtocol
+  liftIO $ bindSocket sock (addrAddress serveraddr)
 
   time <- liftIO $ round `fmap` getPOSIXTime
 
@@ -61,10 +63,10 @@ connectMe bootstrapAddr bootstrapPort prv port = do
 --  let bootstrapAddr = "127.0.0.1"
 --      bootstrapPort = "30303"
           
-  (peeraddr:_) <- getAddrInfo Nothing (Just bootstrapAddr) (Just bootstrapPort)
+  (peeraddr:_) <- liftIO $ getAddrInfo Nothing (Just bootstrapAddr) (Just bootstrapPort)
 --  sock2 <- socket (addrFamily peeraddr) Datagram defaultProtocol
 
-  liftIO $ sendPacket sock prv (addrAddress peeraddr) $ Ping 4 (Endpoint (getHostAddress $ addrAddress serveraddr) 30303 30303) (Endpoint (getHostAddress $ addrAddress peeraddr) 30303 30303) (time+50)
+  sendPacket sock prv (addrAddress peeraddr) $ Ping 4 (Endpoint (getHostAddress $ addrAddress serveraddr) 30303 30303) (Endpoint (getHostAddress $ addrAddress peeraddr) 30303 30303) (time+50)
          
   return sock
          
@@ -72,7 +74,7 @@ pointToBytes::Point->[Word8]
 pointToBytes (Point x y) = intToBytes x ++ intToBytes y
 pointToBytes PointO = error "pointToBytes got value PointO, I don't know what to do here"
          
-udpHandshakeServer :: (HasSQLDB m, MonadResource m, MonadBaseControl IO m, MonadThrow m, MonadIO m) 
+udpHandshakeServer :: (HasSQLDB m, MonadResource m, MonadBaseControl IO m, MonadThrow m, MonadIO m, MonadLogger m) 
                    => H.PrvKey 
                    -> Socket
                    -> m ()
@@ -80,11 +82,11 @@ udpHandshakeServer prv sock = do
    (msg,addr) <- liftIO $ NB.recvFrom sock 1280  -- liftIO unavoidable?
 
    let (packet, otherPubkey) = dataToPacket msg
-   liftIO $ putStrLn $ "Message Received from " ++ show (B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey)
+   logInfoN $ T.pack $ "Message Received from " ++ show (B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey)
 
-   --liftIO $ putStrLn $ "Message Received from " ++ (show $ B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey $ fromMaybe (error "invalid private number in main") $ H.makePrvKey $ fromIntegral otherPubkey)
+   --logInfoN $ T.pack $ "Message Received from " ++ (show $ B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey $ fromMaybe (error "invalid private number in main") $ H.makePrvKey $ fromIntegral otherPubkey)
 
-   liftIO $ putStrLn $ "     --" ++ format (fst $ dataToPacket msg)
+   logInfoN $ T.pack $ "     --" ++ format (fst $ dataToPacket msg)
 
    case packet of
      Ping _ _ _ _ -> do
@@ -105,21 +107,21 @@ udpHandshakeServer prv sock = do
         
                  time <- liftIO $ round `fmap` getPOSIXTime
                  peerAddr <- fmap IPV4Addr $ liftIO $ inet_addr "127.0.0.1"
-                 liftIO $ sendPacket sock prv addr $ Pong (Endpoint peerAddr 30303 30303) 4 (time+50)
+                 sendPacket sock prv addr $ Pong (Endpoint peerAddr 30303 30303) 4 (time+50)
 
      Pong _ _ _ -> do
                  time <- liftIO $ round `fmap` getPOSIXTime
                  randomBytes <- liftIO $ getEntropy 64
-                 liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID randomBytes) (time + 50)
-                 --liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
-                 --liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey prv) (time + 50)
+                 sendPacket sock prv addr $ FindNeighbors (NodeID randomBytes) (time + 50)
+                 --sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
+                 --sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey prv) (time + 50)
 
      FindNeighbors _ _ -> do
                  time <- liftIO $ round `fmap` getPOSIXTime
-                 liftIO $ sendPacket sock prv addr $ Neighbors [] (time + 50)
-                 --liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
+                 sendPacket sock prv addr $ Neighbors [] (time + 50)
+                 --sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
                  randomBytes <- liftIO $ getEntropy 64
-                 liftIO $ sendPacket sock prv addr $ FindNeighbors (NodeID randomBytes) (time + 50)
+                 sendPacket sock prv addr $ FindNeighbors (NodeID randomBytes) (time + 50)
                         
      Neighbors neighbors _ -> do
                  forM_ neighbors $ \(Neighbor (Endpoint addr' _ tcpPort) nodeID) -> do

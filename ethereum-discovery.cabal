@@ -22,6 +22,8 @@ executable ethereum-discover
                      , entropy
                      , ethereum-rlp
                      , haskoin
+                     , lifted-base
+                     , monad-logger
                      , mtl
                      , network
                      , persistent-postgresql
