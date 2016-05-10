@@ -1,5 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+module Executable.EthereumDiscovery (
+  ethereumDiscovery
+  ) where
+
 import Control.Exception.Lifted
 import Control.Monad.IO.Class
 import Control.Monad.Logger
@@ -20,8 +24,8 @@ privateKey = fromMaybe (error "Bad value for hardcoded private key in Main.hs") 
 listenPort::Int
 listenPort = 30303
              
-lMain::[String]->LoggingT IO ()
-lMain args = do
+ethereumDiscovery::[String]->LoggingT IO ()
+ethereumDiscovery args = do
           
   let (bootstrapAddr, bootstrapPort) =
        case args of
@@ -43,8 +47,3 @@ lMain args = do
 
 
   return ()
-
-main :: IO ()
-main = do
-  args <- getArgs
-  S.withSocketsDo $ flip runLoggingT printLogMsg $ lMain args
