@@ -23,8 +23,6 @@ import qualified Data.Text as T
 data ContextLite =
   ContextLite { liteSQLDB::SQLDB }
 
-type ContextMLite = StateT ContextLite (ResourceT IO)
-
 instance (MonadBaseControl IO m, MonadResource m)=>HasSQLDB (StateT ContextLite m) where
   getSQLDB = fmap liteSQLDB get
 

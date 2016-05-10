@@ -356,7 +356,7 @@ findNeighbors myPriv domain port = do
 
         _ <- NB.send socket' $ B.pack $ theHash ++ theSignature ++ [theType] ++ theData
 
-        pubKey <- NB.recv socket' 10 >>= print -- processDataStream' . B.unpack
+        _ <- NB.recv socket' 10 >>= print -- processDataStream' . B.unpack
 
         --return $ hPubKeyToPubKey pubKey
 

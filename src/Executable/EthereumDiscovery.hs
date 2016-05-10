@@ -12,10 +12,8 @@ import Data.Maybe
 import qualified Data.Text as T
 import qualified Network.Socket as S
 import qualified Network.Haskoin.Internals as H
-import System.Environment
     
 import Blockchain.ContextLite
-import Blockchain.Output
 import Blockchain.UDPServer
 
 privateKey :: H.PrvKey
