@@ -93,16 +93,16 @@ udpHandshakeServer prv sock = do
                  let ip = sockAddrToIP addr
                  curTime <- liftIO $ getCurrentTime
                  let peer = PPeer {
-                                pPeerPubkey = hPubKeyToPubKey $ otherPubkey,
-                                pPeerIp = T.pack ip,
-                                pPeerPort = fromIntegral $ getAddrPort addr,
-                                pPeerNumSessions = 0,
-                                pPeerLastTotalDifficulty = 0,
-                                pPeerLastMsg  = T.pack "msg",
-                                pPeerLastMsgTime = curTime,
-                                pPeerLastBestBlockHash = SHA 0,
-                                pPeerVersion = T.pack "61" -- fix
-                              }
+                       pPeerPubkey = Just $ hPubKeyToPubKey $ otherPubkey,
+                       pPeerIp = T.pack ip,
+                       pPeerPort = fromIntegral $ getAddrPort addr,
+                       pPeerNumSessions = 0,
+                       pPeerLastTotalDifficulty = 0,
+                       pPeerLastMsg  = T.pack "msg",
+                       pPeerLastMsgTime = curTime,
+                       pPeerLastBestBlockHash = SHA 0,
+                       pPeerVersion = T.pack "61" -- fix
+                       }
                  _ <- addPeer peer
         
                  time <- liftIO $ round `fmap` getPOSIXTime
@@ -127,16 +127,16 @@ udpHandshakeServer prv sock = do
                  forM_ neighbors $ \(Neighbor (Endpoint addr' _ tcpPort) nodeID) -> do
                                 curTime <- liftIO $ getCurrentTime
                                 let peer = PPeer {
-                                             pPeerPubkey = nodeIDToPoint nodeID,
-                                             pPeerIp = T.pack $ format addr',
-                                             pPeerPort = fromIntegral tcpPort,
-                                             pPeerNumSessions = 0,
-                                             pPeerLastTotalDifficulty = 0,
-                                             pPeerLastMsg  = T.pack "msg",
-                                             pPeerLastMsgTime = curTime,
-                                             pPeerLastBestBlockHash = SHA 0,
-                                             pPeerVersion = T.pack "61" -- fix
-                                           }
+                                      pPeerPubkey = Just $ nodeIDToPoint nodeID,
+                                      pPeerIp = T.pack $ format addr',
+                                      pPeerPort = fromIntegral tcpPort,
+                                      pPeerNumSessions = 0,
+                                      pPeerLastTotalDifficulty = 0,
+                                      pPeerLastMsg  = T.pack "msg",
+                                      pPeerLastMsgTime = curTime,
+                                      pPeerLastBestBlockHash = SHA 0,
+                                      pPeerVersion = T.pack "61" -- fix
+                                      }
                                 _ <- addPeer peer
                      
                                 return ()
