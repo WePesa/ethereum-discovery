@@ -106,7 +106,6 @@ udpHandshakeServer prv sock = do
                  _ <- addPeer peer
         
                  time <- liftIO $ round `fmap` getPOSIXTime
-                 peerAddr <- fmap IPV4Addr $ liftIO $ inet_addr "127.0.0.1"
                  sendPacket sock prv addr $ Pong (Endpoint (getHostAddress addr) 30303 0) 4 (time+50)
 
      Pong _ _ _ -> do
