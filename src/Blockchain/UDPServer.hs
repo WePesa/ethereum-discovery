@@ -100,6 +100,7 @@ udpHandshakeServer prv sock = do
                        pPeerLastTotalDifficulty = 0,
                        pPeerLastMsg  = T.pack "msg",
                        pPeerLastMsgTime = curTime,
+                       pPeerEnableTime = curTime,
                        pPeerLastBestBlockHash = SHA 0,
                        pPeerVersion = T.pack "61" -- fix
                        }
@@ -134,6 +135,7 @@ udpHandshakeServer prv sock = do
                                       pPeerLastTotalDifficulty = 0,
                                       pPeerLastMsg  = T.pack "msg",
                                       pPeerLastMsgTime = curTime,
+                                      pPeerEnableTime = curTime,
                                       pPeerLastBestBlockHash = SHA 0,
                                       pPeerVersion = T.pack "61" -- fix
                                       }
