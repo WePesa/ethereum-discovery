@@ -8,6 +8,7 @@ module Blockchain.UDPServer (
 
 import Network.Socket
 import qualified Network.Socket.ByteString as NB
+import System.Timeout
 
 import           Control.Monad.IO.Class
 import           Control.Monad.Logger
@@ -79,17 +80,21 @@ udpHandshakeServer :: (HasSQLDB m, MonadResource m, MonadBaseControl IO m, Monad
                    -> Socket
                    -> m ()
 udpHandshakeServer prv sock = do
-   (msg,addr) <- liftIO $ NB.recvFrom sock 1280  -- liftIO unavoidable?
+  maybePacketData <- liftIO $ timeout 10000000 $ NB.recvFrom sock 1280  -- liftIO unavoidable?
 
-   let (packet, otherPubkey) = dataToPacket msg
-   logInfoN $ T.pack $ "Message Received from " ++ show (B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey)
+  case maybePacketData of
+   Nothing -> do
+     logInfoN "timeout triggered"
+   Just (msg,addr) -> do
+     let (packet, otherPubkey) = dataToPacket msg
+     logInfoN $ T.pack $ "Message Received from " ++ show (B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey)
 
-   --logInfoN $ T.pack $ "Message Received from " ++ (show $ B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey $ fromMaybe (error "invalid private number in main") $ H.makePrvKey $ fromIntegral otherPubkey)
+     --logInfoN $ T.pack $ "Message Received from " ++ (show $ B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey $ fromMaybe (error "invalid private number in main") $ H.makePrvKey $ fromIntegral otherPubkey)
 
-   logInfoN $ T.pack $ "     --" ++ format (fst $ dataToPacket msg)
+     logInfoN $ T.pack $ "     --" ++ format (fst $ dataToPacket msg)
 
-   case packet of
-     Ping _ _ _ _ -> do
+     case packet of
+      Ping _ _ _ _ -> do
                  let ip = sockAddrToIP addr
                  curTime <- liftIO $ getCurrentTime
                  let peer = PPeer {
@@ -110,21 +115,21 @@ udpHandshakeServer prv sock = do
                  peerAddr <- fmap IPV4Addr $ liftIO $ inet_addr "127.0.0.1"
                  sendPacket sock prv addr $ Pong (Endpoint peerAddr 30303 30303) 4 (time+50)
 
-     Pong _ _ _ -> do
+      Pong _ _ _ -> do
                  time <- liftIO $ round `fmap` getPOSIXTime
                  randomBytes <- liftIO $ getEntropy 64
                  sendPacket sock prv addr $ FindNeighbors (NodeID randomBytes) (time + 50)
                  --sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
                  --sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey prv) (time + 50)
 
-     FindNeighbors _ _ -> do
+      FindNeighbors _ _ -> do
                  time <- liftIO $ round `fmap` getPOSIXTime
                  sendPacket sock prv addr $ Neighbors [] (time + 50)
                  --sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
                  randomBytes <- liftIO $ getEntropy 64
                  sendPacket sock prv addr $ FindNeighbors (NodeID randomBytes) (time + 50)
                         
-     Neighbors neighbors _ -> do
+      Neighbors neighbors _ -> do
                  forM_ neighbors $ \(Neighbor (Endpoint addr' _ tcpPort) nodeID) -> do
                                 curTime <- liftIO $ getCurrentTime
                                 let peer = PPeer {
@@ -143,8 +148,10 @@ udpHandshakeServer prv sock = do
                      
                                 return ()
 
-                        
-   udpHandshakeServer prv sock
+
+
+                 
+  udpHandshakeServer prv sock
 
 getAddrPort::SockAddr->PortNumber
 getAddrPort (SockAddrInet portNumber _) = portNumber
