@@ -45,7 +45,7 @@ ethereumDiscovery listenPort args = do
     bracket
       (connectMe bootstrapAddr bootstrapPort privateKey listenPort)
       (liftIO . S.sClose)
-      (runEthUDPServer cxt privateKey)
+      (runEthUDPServer bootstrapAddr bootstrapPort cxt privateKey)
 
 
   return ()

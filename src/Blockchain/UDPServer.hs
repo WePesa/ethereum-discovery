@@ -34,13 +34,14 @@ import           Blockchain.Data.DataDefs
 import           Blockchain.DB.SQLDB
 import           Blockchain.ContextLite
 import           Blockchain.P2PUtil
+import           Blockchain.PeerDB
                       
 import qualified Network.Haskoin.Internals as H
     
 runEthUDPServer::(MonadIO m, MonadThrow m, MonadBaseControl IO m, MonadLogger m)=>
-                 ContextLite->H.PrvKey->Socket->m ()
-runEthUDPServer cxt myPriv sock = do
-  _ <- runResourceT $ flip runStateT cxt $ udpHandshakeServer myPriv sock
+                 String->String->ContextLite->H.PrvKey->Socket->m ()
+runEthUDPServer bootstrapAddr bootstrapPort cxt myPriv sock = do
+  _ <- runResourceT $ flip runStateT cxt $ udpHandshakeServer bootstrapAddr bootstrapPort myPriv sock
   return ()
 
 connectMe::(MonadIO m, MonadLogger m)=>
@@ -75,16 +76,20 @@ pointToBytes::Point->[Word8]
 pointToBytes (Point x y) = intToBytes x ++ intToBytes y
 pointToBytes PointO = error "pointToBytes got value PointO, I don't know what to do here"
          
-udpHandshakeServer :: (HasSQLDB m, MonadResource m, MonadBaseControl IO m, MonadThrow m, MonadIO m, MonadLogger m) 
-                   => H.PrvKey 
-                   -> Socket
-                   -> m ()
-udpHandshakeServer prv sock = do
+udpHandshakeServer::(HasSQLDB m, MonadResource m, MonadBaseControl IO m, MonadThrow m, MonadIO m, MonadLogger m)=>
+                    String->String->H.PrvKey->Socket->m ()
+udpHandshakeServer bootstrapAddr bootstrapPort prv sock = do
   maybePacketData <- liftIO $ timeout 10000000 $ NB.recvFrom sock 1280  -- liftIO unavoidable?
 
   case maybePacketData of
    Nothing -> do
      logInfoN "timeout triggered"
+     numAvailablePeers <- liftIO getNumAvailablePeers
+     when (numAvailablePeers < 10) $ do
+       (peeraddr:_) <- liftIO $ getAddrInfo Nothing (Just bootstrapAddr) (Just bootstrapPort)
+       time <- liftIO $ round `fmap` getPOSIXTime
+       randomBytes <- liftIO $ getEntropy 64
+       sendPacket sock prv (addrAddress peeraddr) $ FindNeighbors (NodeID randomBytes) (time + 50)
    Just (msg,addr) -> do
      let (packet, otherPubkey) = dataToPacket msg
      logInfoN $ T.pack $ "Message Received from " ++ show (B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey)
@@ -151,7 +156,7 @@ udpHandshakeServer prv sock = do
 
 
                  
-  udpHandshakeServer prv sock
+  udpHandshakeServer bootstrapAddr bootstrapPort prv sock
 
 getAddrPort::SockAddr->PortNumber
 getAddrPort (SockAddrInet portNumber _) = portNumber

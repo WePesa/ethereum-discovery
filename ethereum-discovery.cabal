@@ -29,6 +29,7 @@ library
                      , postgresql-simple
                      , resourcet
                      , split
+                     , strato-conf
                      , text
                      , time
                      , transformers
@@ -36,6 +37,7 @@ library
   other-modules:       Blockchain.ContextLite
                        Blockchain.ExtendedECDSA
                        Blockchain.P2PUtil
+                       Blockchain.PeerDB
                        Blockchain.UDP
                        Blockchain.UDPServer
   hs-source-dirs:      src
