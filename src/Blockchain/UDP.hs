@@ -9,8 +9,10 @@ module Blockchain.UDP (
   NodeDiscoveryPacket(..),
   Endpoint(..),
   Neighbor(..),
+  peerToNeighbor,
   NodeID(..),
   nodeIDToPoint,
+  pointToNodeID,
   IAddr(..),
   getHostAddress
   ) where
@@ -35,6 +37,7 @@ import qualified Network.Haskoin.Internals as H
 import Numeric
 import System.Endian
     
+import Blockchain.Data.DataDefs
 import Blockchain.Data.RLP
 import Blockchain.ExtendedECDSA
 import Blockchain.ExtWord
@@ -128,7 +131,14 @@ instance RLPSerializable Neighbor where
     rlpEncode (Neighbor endpoint nodeID) = RLPArray [rlpEncode endpoint, rlpEncode nodeID]
     rlpDecode (RLPArray [address, udpPort, tcpPort, nodeID]) = Neighbor (Endpoint (rlpDecode address) (rlpDecode udpPort) (rlpDecode tcpPort)) (rlpDecode nodeID)
     rlpDecode x = error $ "unsupported rlp in rlpDecode for Neighbor: " ++ show x
-              
+
+
+peerToNeighbor::PPeer->Neighbor
+peerToNeighbor p =
+  case pPeerPubkey p of
+   Nothing -> error "You can't call peerToNeigbor on a peer that doesn't have a pubkey"
+   Just pubKey ->
+     Neighbor (Endpoint (stringToIAddr $ T.unpack $ pPeerIp p) (fromIntegral $ pPeerPort p) (fromIntegral $ pPeerPort p)) $ pointToNodeID pubKey
 
 {-
 rlpToNDPacket::Word8->RLPObject->NodeDiscoveryPacket
@@ -281,6 +291,9 @@ nodeIDToPoint (NodeID nodeID) = Point x y
     where
       x = byteString2Integer $ B.take 32 nodeID
       y = byteString2Integer $ B.drop 32 nodeID
+
+pointToNodeID::Point->NodeID
+pointToNodeID (Point x y) = NodeID $ B.pack $ word256ToBytes (fromInteger x) ++ word256ToBytes (fromInteger y)
                                                         
 instance RLPSerializable NodeID where
   rlpEncode (NodeID x) = RLPString x
