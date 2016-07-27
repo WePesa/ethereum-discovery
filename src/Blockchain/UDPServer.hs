@@ -85,7 +85,7 @@ udpHandshakeServer bootstrapAddr bootstrapPort prv sock = do
    Nothing -> do
      logInfoN "timeout triggered"
      numAvailablePeers <- liftIO getNumAvailablePeers
-     when (numAvailablePeers < 10) $ do
+     when (numAvailablePeers < 100) $ do
        (peeraddr:_) <- liftIO $ getAddrInfo Nothing (Just bootstrapAddr) (Just bootstrapPort)
        time <- liftIO $ round `fmap` getPOSIXTime
        randomBytes <- liftIO $ getEntropy 64
