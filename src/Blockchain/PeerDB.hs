@@ -29,8 +29,8 @@ getClosePeers target = do
 
   return $ take 10 $ sortBy (compare `on` (distance target) . pointToNodeID . fromMaybe (error "internal error in getClosePeers") . pPeerPubkey) allPeers
 
-distance::NodeID->NodeID->Word256
-distance (NodeID x) (NodeID y) = bytesToWord256 $ zipWith (xor) (B.unpack x) (B.unpack y)
+distance::NodeID->NodeID->Word512
+distance (NodeID x) (NodeID y) = bytesToWord512 $ zipWith (xor) (B.unpack x) (B.unpack y)
 
 getNumAvailablePeers::IO Int
 getNumAvailablePeers = do
