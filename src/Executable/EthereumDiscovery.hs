@@ -15,6 +15,7 @@ import qualified Data.Text as T
 import qualified Network.Socket as S
 import qualified Network.Haskoin.Internals as H
     
+import Blockchain.EthConf
 import Blockchain.ContextLite
 import Blockchain.Handshake
 import Blockchain.P2PUtil
@@ -23,15 +24,8 @@ import Blockchain.UDPServer
 privateKey :: H.PrvKey
 privateKey = fromMaybe (error "Bad value for hardcoded private key in Main.hs") $ H.makePrvKey 0xac3e8ce2ef31c3f45d5da860bcd9aee4b37a05c5a3ddee40dd061620c3dab380
 
-{-
-listenPort::Int
-listenPort = 30303
--}
-
-type ListenPort = Int
-           
-ethereumDiscovery::ListenPort->[String]->LoggingT IO ()
-ethereumDiscovery listenPort args = do
+ethereumDiscovery::[String]->LoggingT IO ()
+ethereumDiscovery args = do
   logInfoN $ T.pack $ "pubkey " ++ (show $ B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey privateKey)
   
   let (bootstrapAddr, bootstrapPort) =
@@ -48,7 +42,7 @@ ethereumDiscovery listenPort args = do
     cxt <- initContextLite
 
     bracket
-      (connectMe bootstrapAddr bootstrapPort privateKey listenPort)
+      (connectMe bootstrapAddr bootstrapPort privateKey (discoveryPort $ discoveryConfig ethConf))
       (liftIO . S.sClose)
       (runEthUDPServer bootstrapAddr bootstrapPort cxt privateKey)
 
