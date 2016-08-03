@@ -21,6 +21,7 @@ import Network.Socket
 import qualified Network.Socket.ByteString as NB
 
 import Control.Exception
+import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Logger
 import qualified Crypto.Hash.SHA3 as SHA3
@@ -33,9 +34,11 @@ import qualified Data.ByteString.Char8 as BC
 import Data.List.Split
 import Data.Maybe
 import qualified Data.Text as T
+import Data.Time.Clock.POSIX
 import qualified Network.Haskoin.Internals as H
 import Numeric
 import System.Endian
+import System.Timeout
     
 import Blockchain.Data.DataDefs
 import Blockchain.Data.RLP
@@ -110,7 +113,7 @@ instance RLPSerializable IAddr where
                                                                where word128 = rlpDecode o::Word128
     rlpDecode (RLPString s) = stringToIAddr $ BC.unpack s  --what a mess!  Sometimes address is array of address bytes, sometimes a string representation of the address.  I need to figure this out someday
     rlpDecode x = error $ "bad type for rlpDecode for IAddr: " ++ show x
-                                                                               
+
 data Endpoint = Endpoint IAddr Word16 Word16 deriving (Show,Read,Eq)
 
 instance Format Endpoint where
@@ -254,18 +257,16 @@ sendPacket sock prv addr packet = do
 
 processDataStream'::[Word8]->IO H.PubKey
 processDataStream'
-  (_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:
-   _:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:
---   h1:h2:h3:h4:h5:h6:h7:h8:h9:h10:h11:h12:h13:h14:h15:h16:
---   h17:h18:h19:h20:h21:h22:h23:h24:h25:h26:h27:h28:h29:h30:h31:h32:
+  (h1:h2:h3:h4:h5:h6:h7:h8:h9:h10:h11:h12:h13:h14:h15:h16:
+   h17:h18:h19:h20:h21:h22:h23:h24:h25:h26:h27:h28:h29:h30:h31:h32:
    r1:r2:r3:r4:r5:r6:r7:r8:r9:r10:r11:r12:r13:r14:r15:r16:
    r17:r18:r19:r20:r21:r22:r23:r24:r25:r26:r27:r28:r29:r30:r31:r32:
    s1:s2:s3:s4:s5:s6:s7:s8:s9:s10:s11:s12:s13:s14:s15:s16:
    s17:s18:s19:s20:s21:s22:s23:s24:s25:s26:s27:s28:s29:s30:s31:s32:
    v:
    theType:rest) = do
-  let --theHash = bytesToWord256 [h1,h2,h3,h4,h5,h6,h7,h8,h9,h10,h11,h12,h13,h14,h15,h16,
-      --                          h17,h18,h19,h20,h21,h22,h23,h24,h25,h26,h27,h28,h29,h30,h31,h32]
+  let theHash = bytesToWord256 [h1,h2,h3,h4,h5,h6,h7,h8,h9,h10,h11,h12,h13,h14,h15,h16,
+                                h17,h18,h19,h20,h21,h22,h23,h24,h25,h26,h27,h28,h29,h30,h31,h32]
       r = bytesToWord256 [r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13,r14,r15,r16,
                           r17,r18,r19,r20,r21,r22,r23,r24,r25,r26,r27,r28,r29,r30,r31,r32]
       s = bytesToWord256 [s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15,s16,
@@ -277,6 +278,9 @@ processDataStream'
 
   let SHA messageHash = hash $ B.pack $ [theType] ++ B.unpack (rlpSerialize rlp)
       publicKey = getPubKeyFromSignature signature messageHash  
+      SHA theHash' = hash $ B.pack $ word256ToBytes (fromIntegral r) ++ word256ToBytes (fromIntegral s) ++ [v] ++ [theType] ++ B.unpack (rlpSerialize rlp)
+                  
+  when (theHash /= theHash') $ error "bad UDP data sent from peer, the hash isn't correct"
 
   return $ fromMaybe (error "malformed signature in call to processDataStream") $ publicKey
 
@@ -303,7 +307,14 @@ instance RLPSerializable NodeID where
 instance Format NodeID where
   format (NodeID x) = BC.unpack $ B16.encode x
 
-getServerPubKey::H.PrvKey->String->PortNumber->IO Point
+
+
+data UDPException = UDPTimeout deriving (Show)
+
+instance Exception UDPException where
+          
+  
+getServerPubKey::H.PrvKey->String->PortNumber->IO (Either SomeException Point)
 getServerPubKey myPriv domain port = do
   withSocketsDo $ bracket getSocket close (talk myPriv)
     where
@@ -313,13 +324,12 @@ getServerPubKey myPriv domain port = do
         _ <- connect s (addrAddress serveraddr)
         return s
 
-      talk::H.PrvKey->Socket->IO Point
+      talk::H.PrvKey->Socket->IO (Either SomeException Point)
       talk prvKey' socket' = do
-        fromAddr <- fmap IPV4Addr $ inet_addr "127.0.0.1"
-        toAddr <- fmap IPV4Addr $ inet_addr "127.0.0.1"
+        timestamp <- fmap round getPOSIXTime
         let (theType, theRLP) =
               ndPacketToRLP $
-              Ping 4 (Endpoint fromAddr (fromIntegral $ port) 30303) (Endpoint toAddr (fromIntegral $ port) 30303) 1451606400
+              Ping 4 (Endpoint (stringToIAddr "127.0.0.1") (fromIntegral $ port) 30303) (Endpoint (stringToIAddr "127.0.0.1") (fromIntegral $ port) 30303) (timestamp+50)
             theData = B.unpack $ rlpSerialize theRLP
             SHA theMsgHash = hash $ B.pack $ (theType:theData)
 
@@ -332,12 +342,17 @@ getServerPubKey myPriv domain port = do
             theSignature =
               word256ToBytes (fromIntegral r) ++ word256ToBytes (fromIntegral s) ++ [v]
             theHash = B.unpack $ SHA3.hash 256 $ B.pack $ theSignature ++ [theType] ++ theData
-                    
+
         _ <- NB.send socket' $ B.pack $ theHash ++ theSignature ++ [theType] ++ theData
 
-        pubKey <- NB.recv socket' 2000 >>= processDataStream' . B.unpack
-        
-        return $ hPubKeyToPubKey pubKey
+        --According to https://groups.google.com/forum/#!topic/haskell-cafe/aqaoEDt7auY, it looks like the only way we can time out UDP recv is to 
+        --use the Haskell timeout....  I did try setting socket options also, but that didn't work.
+        pubKey <- try (timeout 5000000 (NB.recv socket' 2000 >>= processDataStream' . B.unpack)) :: IO (Either SomeException (Maybe H.PubKey))
+
+        case pubKey of
+          Right Nothing -> return $ Left $ SomeException UDPTimeout
+          Left x -> return $ Left x
+          Right (Just x) -> return $ Right $ hPubKeyToPubKey x
 
 findNeighbors::H.PrvKey->String->PortNumber->IO ()
 findNeighbors myPriv domain port = do
