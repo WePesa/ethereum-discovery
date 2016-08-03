@@ -25,6 +25,7 @@ import Data.Word
 
 import System.Entropy
 
+import Blockchain.EthConf
 import           Blockchain.Format
 import           Blockchain.UDP
 import           Blockchain.SHA
@@ -44,13 +45,13 @@ runEthUDPServer bootstrapAddr bootstrapPort cxt myPriv sock = do
 
 connectMe::(MonadIO m, MonadLogger m)=>
            String->String->H.PrvKey->Int->m Socket
-connectMe bootstrapAddr bootstrapPort prv port = do
+connectMe bootstrapAddr bootstrapPort prv port' = do
 --  (serveraddr:_) <- getAddrInfo
 --                      (Just (defaultHints {addrFlags = [AI_PASSIVE]}))
 --                      Nothing (Just (show port))
   (serveraddr:_) <- liftIO $ getAddrInfo
                                   (Just (defaultHints {addrFlags = [AI_PASSIVE]}))
-                                  Nothing (Just (show port))
+                                  Nothing (Just (show port'))
   sock <- liftIO $ socket (addrFamily serveraddr) Datagram defaultProtocol
   liftIO $ bindSocket sock (addrAddress serveraddr)
 
@@ -83,7 +84,7 @@ udpHandshakeServer bootstrapAddr bootstrapPort prv sock = do
    Nothing -> do
      logInfoN "timeout triggered"
      numAvailablePeers <- liftIO getNumAvailablePeers
-     when (numAvailablePeers < 100) $ do
+     when (numAvailablePeers < minAvailablePeers (discoveryConfig ethConf)) $ do
        (peeraddr:_) <- liftIO $ getAddrInfo Nothing (Just bootstrapAddr) (Just bootstrapPort)
        time <- liftIO $ round `fmap` getPOSIXTime
        randomBytes <- liftIO $ getEntropy 64
