@@ -40,6 +40,7 @@ import Numeric
 import System.Endian
 import System.Timeout
     
+import qualified Blockchain.Colors as CL
 import Blockchain.Data.DataDefs
 import Blockchain.Data.RLP
 import Blockchain.ExtendedECDSA
@@ -77,10 +78,10 @@ data NodeDiscoveryPacket =
   Neighbors [Neighbor] Integer deriving (Show,Read,Eq)
 
 instance Format NodeDiscoveryPacket where
-    format (Ping _ from to _) = "Ping from: " ++ format from ++ " to: " ++ format to
-    format (Pong to _ _) = "Pong to: " ++ format to
-    format (FindNeighbors nodeID _) = "FindNeighbors " ++ format nodeID
-    format (Neighbors neighbors _) = "Neighbors: \n" ++ unlines (map (("    " ++) . format) neighbors)
+    format (Ping _ from to _) = CL.blue "Ping" ++ " " ++ format from ++ " to: " ++ format to
+    format (Pong to _ _) = CL.blue "Pong" ++ " to: " ++ format to
+    format (FindNeighbors nodeID _) = CL.blue "FindNeighbors " ++ format nodeID
+    format (Neighbors neighbors _) = CL.blue ("Neighbors") ++ ": \n" ++ unlines (map (("    " ++) . format) neighbors)
 
 data IAddr = IPV4Addr HostAddress | IPV6Addr HostAddress6 deriving (Show, Read, Eq)
 
@@ -236,7 +237,7 @@ dataToPacket msg =
 sendPacket::(MonadIO m, MonadLogger m)=>
             Socket->H.PrvKey->SockAddr->NodeDiscoveryPacket->m ()
 sendPacket sock prv addr packet = do
-  logInfoN $ T.pack $ "Sending packet to " ++ show addr ++ ": " ++ format packet
+  logInfoN $ T.pack $ CL.green ">>>>" ++ " (" ++ show addr ++ ") " ++ format packet
   let (theType', theRLP) = ndPacketToRLP packet
 
       theData = B.unpack $ rlpSerialize theRLP
@@ -306,7 +307,7 @@ instance RLPSerializable NodeID where
   rlpDecode x = error $ "unsupported rlp in rlpDecode for NodeID: " ++ show x
 
 instance Format NodeID where
-  format (NodeID x) = BC.unpack $ B16.encode x
+  format (NodeID x) = BC.unpack (B16.encode $ B.take 10 x) ++ "...."
 
 
 

@@ -15,8 +15,9 @@ import qualified Data.Text as T
 import qualified Network.Socket as S
 import qualified Network.Haskoin.Internals as H
     
-import Blockchain.EthConf
+import qualified Blockchain.Colors as CL
 import Blockchain.ContextLite
+import Blockchain.EthConf
 import Blockchain.Handshake
 import Blockchain.P2PUtil
 import Blockchain.UDPServer
@@ -26,7 +27,9 @@ privateKey = fromMaybe (error "Bad value for hardcoded private key in Main.hs") 
 
 ethereumDiscovery::[String]->LoggingT IO ()
 ethereumDiscovery args = do
-  logInfoN $ T.pack $ "pubkey " ++ (show $ B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey privateKey)
+  logInfoN $ T.pack $ CL.blue "Welcome to ethereum-discovery"
+  logInfoN $ T.pack $ CL.blue "============================="
+  logInfoN $ T.pack $ CL.green " * My NodeID is " ++ show (B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey privateKey)
   
   let (bootstrapAddr, bootstrapPort) =
        case args of
@@ -34,10 +37,8 @@ ethereumDiscovery args = do
             [] -> ("52.16.188.185", "30303")
             _ -> error "params have wrong format"
 
-  logInfoN $ T.pack $ "Bootstrap address: " ++ bootstrapAddr ++ ":" ++ bootstrapPort
+  logInfoN $ T.pack $ CL.green " * Bootstrap address: " ++ bootstrapAddr ++ ":" ++ bootstrapPort
             
-  logInfoN "Starting Discovery daemon"
-
   _ <- runResourceT $ do
     cxt <- initContextLite
 

@@ -16,6 +16,7 @@ import           Control.Monad.State
 import           Control.Monad.Trans.Resource
 import Crypto.Types.PubKey.ECC
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Base16 as B16
 import           Data.Time.Clock.POSIX
 import           Data.Time.Clock
@@ -25,6 +26,7 @@ import Data.Word
 
 import System.Entropy
 
+import qualified Blockchain.Colors as CL
 import Blockchain.EthConf
 import           Blockchain.Format
 import           Blockchain.UDP
@@ -91,11 +93,9 @@ udpHandshakeServer bootstrapAddr bootstrapPort prv sock = do
        sendPacket sock prv (addrAddress peeraddr) $ FindNeighbors (NodeID randomBytes) (time + 50)
    Just (msg,addr) -> do
      let (packet, otherPubkey) = dataToPacket msg
-     logInfoN $ T.pack $ "Message Received from " ++ show (B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey)
+     logInfoN $ T.pack $ CL.cyan "<<<<" ++ " (" ++ show addr ++ " " ++ BC.unpack (B.take 10 $ B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) ++ "....) " ++ format (fst $ dataToPacket msg)
 
      --logInfoN $ T.pack $ "Message Received from " ++ (show $ B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey $ fromMaybe (error "invalid private number in main") $ H.makePrvKey $ fromIntegral otherPubkey)
-
-     logInfoN $ T.pack $ "     --" ++ format (fst $ dataToPacket msg)
 
      case packet of
       Ping _ _ _ _ -> do
