@@ -204,7 +204,6 @@ showPubKey (H.PubKey point) =
 showPubKey (H.PubKeyU _) = error "Missing case in showPubKey: PubKeyU"
 -}  
 
-
 dataToPacket::B.ByteString->(NodeDiscoveryPacket, H.PubKey)
 dataToPacket msg =
     let r = bytesToWord256 $ B.unpack $ B.take 32 $ B.drop 32 $ msg
@@ -293,6 +292,7 @@ nodeIDToPoint (NodeID nodeID) = Point x y
       y = byteString2Integer $ B.drop 32 nodeID
 
 pointToNodeID::Point->NodeID
+pointToNodeID PointO = error "called pointToNodeID with PointO, we can't handle that yet"
 pointToNodeID (Point x y) = NodeID $ B.pack $ word256ToBytes (fromInteger x) ++ word256ToBytes (fromInteger y)
                                                         
 instance RLPSerializable NodeID where

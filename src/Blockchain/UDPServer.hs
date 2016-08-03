@@ -15,8 +15,6 @@ import           Control.Monad.Logger
 import           Control.Monad.State
 import           Control.Monad.Trans.Resource
 import Crypto.Types.PubKey.ECC
---import Crypto.Random
-            
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Base16 as B16
 import           Data.Time.Clock.POSIX

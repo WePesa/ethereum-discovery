@@ -10,13 +10,11 @@ import Data.Function
 import Data.List
 import Data.Maybe
 import Data.Time.Clock
-import Data.Time.Clock.POSIX
 import qualified Database.Persist.Postgresql as SQL
 
 import Blockchain.Data.DataDefs
 import Blockchain.EthConf
 import Blockchain.ExtWord
-import Blockchain.SHA
 import Blockchain.UDP
 
 getClosePeers::NodeID->IO [PPeer]
