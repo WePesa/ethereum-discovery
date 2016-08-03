@@ -131,7 +131,8 @@ instance RLPSerializable Endpoint where
     rlpDecode x = error $ "unsupported rlp in rlpDecode for Endpoint: " ++ show x
                                                        
 instance RLPSerializable Neighbor where
-    rlpEncode (Neighbor endpoint nodeID) = RLPArray [rlpEncode endpoint, rlpEncode nodeID]
+    rlpEncode (Neighbor (Endpoint address udpPort tcpPort) nodeID) =
+      RLPArray [rlpEncode address, rlpEncode udpPort, rlpEncode tcpPort, rlpEncode nodeID]
     rlpDecode (RLPArray [address, udpPort, tcpPort, nodeID]) = Neighbor (Endpoint (rlpDecode address) (rlpDecode udpPort) (rlpDecode tcpPort)) (rlpDecode nodeID)
     rlpDecode x = error $ "unsupported rlp in rlpDecode for Neighbor: " ++ show x
 
