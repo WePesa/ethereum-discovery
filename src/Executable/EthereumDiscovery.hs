@@ -8,12 +8,16 @@ import Control.Exception.Lifted
 import Control.Monad.IO.Class
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Base16 as B16
 import Data.Maybe
 import qualified Data.Text as T
 import qualified Network.Socket as S
 import qualified Network.Haskoin.Internals as H
     
 import Blockchain.ContextLite
+import Blockchain.Handshake
+import Blockchain.P2PUtil
 import Blockchain.UDPServer
 
 privateKey :: H.PrvKey
@@ -28,7 +32,8 @@ type ListenPort = Int
            
 ethereumDiscovery::ListenPort->[String]->LoggingT IO ()
 ethereumDiscovery listenPort args = do
-          
+  logInfoN $ T.pack $ "pubkey " ++ (show $ B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey privateKey)
+  
   let (bootstrapAddr, bootstrapPort) =
        case args of
             [x, y] -> (x, y)
