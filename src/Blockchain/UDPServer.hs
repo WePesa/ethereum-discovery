@@ -76,26 +76,30 @@ connectMe bootstrapAddr bootstrapPort prv port' = do
 pointToBytes::Point->[Word8]
 pointToBytes (Point x y) = intToBytes x ++ intToBytes y
 pointToBytes PointO = error "pointToBytes got value PointO, I don't know what to do here"
-         
+
+addPeersIfNeeded::(MonadIO m, MonadLogger m)=>
+                  String->String->H.PrvKey->Socket->m ()
+addPeersIfNeeded bootstrapAddr bootstrapPort prv sock= do
+  numAvailablePeers <- liftIO getNumAvailablePeers
+  when (numAvailablePeers < minAvailablePeers (discoveryConfig ethConf)) $ do
+    (peeraddr:_) <- liftIO $ getAddrInfo Nothing (Just bootstrapAddr) (Just bootstrapPort)
+    time <- liftIO $ round `fmap` getPOSIXTime
+    randomBytes <- liftIO $ getEntropy 64
+    sendPacket sock prv (addrAddress peeraddr) $ FindNeighbors (NodeID randomBytes) (time + 50)
+
 udpHandshakeServer::(HasSQLDB m, MonadResource m, MonadBaseControl IO m, MonadThrow m, MonadIO m, MonadLogger m)=>
                     String->String->H.PrvKey->Socket->m ()
 udpHandshakeServer bootstrapAddr bootstrapPort prv sock = do
+  addPeersIfNeeded bootstrapAddr bootstrapPort prv sock
+  
   maybePacketData <- liftIO $ timeout 10000000 $ NB.recvFrom sock 1280  -- liftIO unavoidable?
 
   case maybePacketData of
    Nothing -> do
      logInfoN "timeout triggered"
-     numAvailablePeers <- liftIO getNumAvailablePeers
-     when (numAvailablePeers < minAvailablePeers (discoveryConfig ethConf)) $ do
-       (peeraddr:_) <- liftIO $ getAddrInfo Nothing (Just bootstrapAddr) (Just bootstrapPort)
-       time <- liftIO $ round `fmap` getPOSIXTime
-       randomBytes <- liftIO $ getEntropy 64
-       sendPacket sock prv (addrAddress peeraddr) $ FindNeighbors (NodeID randomBytes) (time + 50)
    Just (msg,addr) -> do
      let (packet, otherPubkey) = dataToPacket msg
      logInfoN $ T.pack $ CL.cyan "<<<<" ++ " (" ++ show addr ++ " " ++ BC.unpack (B.take 10 $ B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) ++ "....) " ++ format (fst $ dataToPacket msg)
-
-     --logInfoN $ T.pack $ "Message Received from " ++ (show $ B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey $ fromMaybe (error "invalid private number in main") $ H.makePrvKey $ fromIntegral otherPubkey)
 
      case packet of
       Ping _ _ _ _ -> do
@@ -119,12 +123,7 @@ udpHandshakeServer bootstrapAddr bootstrapPort prv sock = do
                  peerAddr <- fmap IPV4Addr $ liftIO $ inet_addr "127.0.0.1"
                  sendPacket sock prv addr $ Pong (Endpoint peerAddr 30303 30303) 4 (time+50)
 
-      Pong _ _ _ -> do
-                 time <- liftIO $ round `fmap` getPOSIXTime
-                 randomBytes <- liftIO $ getEntropy 64
-                 sendPacket sock prv addr $ FindNeighbors (NodeID randomBytes) (time + 50)
-                 --sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
-                 --sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey $ H.derivePubKey prv) (time + 50)
+      Pong _ _ _ -> return ()
 
       FindNeighbors target _ -> do
                  time <- liftIO $ round `fmap` getPOSIXTime
@@ -133,9 +132,6 @@ udpHandshakeServer bootstrapAddr bootstrapPort prv sock = do
                      secondPeers = drop 8 allPeers
                  sendPacket sock prv addr $ Neighbors (map peerToNeighbor firstPeers) (time + 50)
                  sendPacket sock prv addr $ Neighbors (map peerToNeighbor secondPeers) (time + 50)
-                 --sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
-                 randomBytes <- liftIO $ getEntropy 64
-                 sendPacket sock prv addr $ FindNeighbors (NodeID randomBytes) (time + 50)
                         
       Neighbors neighbors _ -> do
                  forM_ neighbors $ \(Neighbor (Endpoint addr' _ tcpPort) nodeID) -> do
