@@ -25,7 +25,7 @@ getClosePeers target = do
     fmap (map SQL.entityVal) $ flip SQL.runSqlPool sqldb $ 
     SQL.selectList [PPeerEnableTime SQL.<. currentTime, PPeerPubkey SQL.!=. Nothing] []
 
-  return $ take 10 $ sortBy (compare `on` (distance target) . pointToNodeID . fromMaybe (error "internal error in getClosePeers") . pPeerPubkey) allPeers
+  return $ take 16 $ sortBy (compare `on` (distance target) . pointToNodeID . fromMaybe (error "internal error in getClosePeers") . pPeerPubkey) allPeers
 
 distance::NodeID->NodeID->Word512
 distance (NodeID x) (NodeID y) = bytesToWord512 $ zipWith (xor) (B.unpack x) (B.unpack y)

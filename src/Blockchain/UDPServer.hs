@@ -128,8 +128,11 @@ udpHandshakeServer bootstrapAddr bootstrapPort prv sock = do
 
       FindNeighbors target _ -> do
                  time <- liftIO $ round `fmap` getPOSIXTime
-                 peers <- liftIO $ getClosePeers target
-                 sendPacket sock prv addr $ Neighbors (map peerToNeighbor peers) (time + 50)
+                 allPeers <- liftIO $ getClosePeers target
+                 let firstPeers = take 8 allPeers
+                     secondPeers = drop 8 allPeers
+                 sendPacket sock prv addr $ Neighbors (map peerToNeighbor firstPeers) (time + 50)
+                 sendPacket sock prv addr $ Neighbors (map peerToNeighbor secondPeers) (time + 50)
                  --sendPacket sock prv addr $ FindNeighbors (NodeID $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) (time + 50)
                  randomBytes <- liftIO $ getEntropy 64
                  sendPacket sock prv addr $ FindNeighbors (NodeID randomBytes) (time + 50)
