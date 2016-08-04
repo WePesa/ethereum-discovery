@@ -86,17 +86,11 @@ instance Format NodeDiscoveryPacket where
 data IAddr = IPV4Addr HostAddress | IPV6Addr HostAddress6 deriving (Show, Read, Eq)
 
 instance Format IAddr where
-{-    format (IPV4Addr x) =
+    format (IPV4Addr x) =
       show (fromIntegral x::Word8) ++ "." ++
       show (fromIntegral $ x `shiftR` 8::Word8) ++ "." ++
       show (fromIntegral $ x `shiftR` 16::Word8) ++ "." ++
-      show (fromIntegral $ x `shiftR` 24::Word8) -}
-      
-    format (IPV4Addr x) =
-      show (fromIntegral $ x `shiftR` 24::Word8) ++ "." ++
-      show (fromIntegral $ x `shiftR` 16::Word8) ++ "." ++
-      show (fromIntegral $ x `shiftR` 8::Word8) ++ "." ++
-      show (fromIntegral x::Word8)
+      show (fromIntegral $ x `shiftR` 24::Word8)
       
     format (IPV6Addr (v1, v2, v3, v4)) =
         showHex (fromIntegral $ v4 `shiftR` 16::Word16) "" ++ ":" ++
@@ -113,12 +107,12 @@ instance Format IAddr where
 -- odd that this doesn't exist, but so says reddit- https://www.reddit.com/r/haskellquestions/comments/331lot/simple_preferably_pure_way_to_create_hostaddress/
 stringToIAddr::String->IAddr
 stringToIAddr x | '.' `elem` x =
-                    IPV4Addr $ (a `shift` 24) + (b `shift` 16) + (c `shift` 8) + d
+                    IPV4Addr $ a + (b `shift` 8) + (c `shift` 16) + (d `shift` 24)
   where [a,b,c,d] = map read $ splitOn "." x
 stringToIAddr x = error $ "bad format in stringToIAddr: " ++ show x
 
 instance RLPSerializable IAddr where
-    rlpEncode (IPV4Addr x) = rlpEncode x
+    rlpEncode (IPV4Addr x) = rlpEncode $ fromBE32 x
     rlpEncode x = error $ "case not yet covered for rlpEncode for IAddr: " ++ show x
     rlpDecode o@(RLPString s) | B.length s == 4 = IPV4Addr $ fromBE32 $ rlpDecode o
     rlpDecode o@(RLPString s) | B.length s == 16 = IPV6Addr $ (fromIntegral word128, fromIntegral $ word128 `shiftR` 32, fromIntegral $ word128 `shiftR` 64, fromIntegral $ word128 `shiftR` 96) --TODO- verify the order of this
