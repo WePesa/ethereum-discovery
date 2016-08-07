@@ -11,7 +11,7 @@ import Database.Persist.Postgresql
 import qualified Data.Text as T
 import Data.Time.Clock
 
-import Blockchain.Data.DataDefs
+import Blockchain.Data.Peer
 import Blockchain.EthConf
 import Blockchain.SHA
 

@@ -14,7 +14,7 @@ import Control.Monad.Trans.Resource
 
 import Blockchain.DBM
 import Blockchain.DB.SQLDB
-import Blockchain.Data.DataDefs
+import Blockchain.Data.Peer
 
 import qualified Database.Persist.Postgresql as SQL
 

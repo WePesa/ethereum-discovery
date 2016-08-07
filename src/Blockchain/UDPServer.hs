@@ -31,7 +31,7 @@ import Blockchain.EthConf
 import           Blockchain.Format
 import           Blockchain.UDP
 import           Blockchain.SHA
-import           Blockchain.Data.DataDefs
+import           Blockchain.Data.Peer
 import           Blockchain.DB.SQLDB
 import           Blockchain.ContextLite
 import           Blockchain.P2PUtil

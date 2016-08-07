@@ -41,7 +41,7 @@ import System.Endian
 import System.Timeout
     
 import qualified Blockchain.Colors as CL
-import Blockchain.Data.DataDefs
+import Blockchain.Data.Peer
 import Blockchain.Data.RLP
 import Blockchain.ExtendedECDSA
 import Blockchain.ExtWord

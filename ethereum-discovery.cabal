@@ -26,7 +26,9 @@ library
                      , monad-logger
                      , mtl
                      , network
+                     , persistent
                      , persistent-postgresql
+                     , persistent-template
                      , postgresql-simple
                      , resourcet
                      , split
@@ -34,7 +36,9 @@ library
                      , text
                      , time
                      , transformers
-  exposed-modules:     Executable.EthereumDiscovery
+  exposed-modules:
+                       Blockchain.Data.Peer
+                       Executable.EthereumDiscovery
                        Executable.EthDiscoverySetup
                        Blockchain.UDP
   other-modules:       Blockchain.ContextLite

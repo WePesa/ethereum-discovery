@@ -12,7 +12,7 @@ import Data.Maybe
 import Data.Time.Clock
 import qualified Database.Persist.Postgresql as SQL
 
-import Blockchain.Data.DataDefs
+import Blockchain.Data.Peer
 import Blockchain.EthConf
 import Blockchain.ExtWord
 import Blockchain.UDP
