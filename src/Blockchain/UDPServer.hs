@@ -109,6 +109,7 @@ udpHandshakeServer bootstrapAddr bootstrapPort prv sock = do
                        pPeerLastMsgTime = curTime,
                        pPeerEnableTime = curTime,
                        pPeerLastBestBlockHash = SHA 0,
+                       pPeerBondState = 0,
                        pPeerVersion = T.pack "61" -- fix
                        }
                  _ <- addPeer peer
@@ -140,6 +141,7 @@ udpHandshakeServer bootstrapAddr bootstrapPort prv sock = do
                                       pPeerLastMsgTime = curTime,
                                       pPeerEnableTime = curTime,
                                       pPeerLastBestBlockHash = SHA 0,
+                                      pPeerBondState = 0,
                                       pPeerVersion = T.pack "61" -- fix
                                       }
                                 _ <- addPeer peer
