@@ -4,21 +4,23 @@ module Executable.EthDiscoverySetup (
   setup
   ) where
 
-import Control.Monad.IO.Class
 import Control.Monad.Logger
 import Database.Persist.Postgresql
 import qualified Data.Text as T
 import Data.Time.Clock
+import Data.Time.Clock.POSIX
 
 import Blockchain.Data.Peer
 import Blockchain.Data.PubKey
 import Blockchain.EthConf
 import Blockchain.SHA
 
+jamshidBirth::UTCTime
+jamshidBirth = posixSecondsToUTCTime 0
+
 setup::LoggingT IO ()
 setup = do
   runNoLoggingT $ withPostgresqlConn connStr $ runSqlConn $ do
-    curTime <- liftIO $ getCurrentTime
     let peer =
           PPeer {
             pPeerPubkey = Just $ stringToPoint "a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c",
@@ -27,8 +29,8 @@ setup = do
             pPeerNumSessions = 0,
             pPeerLastTotalDifficulty = 0,
             pPeerLastMsg  = T.pack "msg",
-            pPeerLastMsgTime = curTime,
-            pPeerEnableTime = curTime,
+            pPeerLastMsgTime = jamshidBirth,
+            pPeerEnableTime = jamshidBirth,
             pPeerLastBestBlockHash = SHA 0,
             pPeerVersion = T.pack "61" -- fix
             }
