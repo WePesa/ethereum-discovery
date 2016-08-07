@@ -35,6 +35,7 @@ library
                      , time
                      , transformers
   exposed-modules:     Executable.EthereumDiscovery
+                       Executable.EthDiscoverySetup
                        Blockchain.UDP
   other-modules:       Blockchain.ContextLite
                        Blockchain.ExtendedECDSA
