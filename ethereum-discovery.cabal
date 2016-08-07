@@ -30,6 +30,7 @@ library
                      , persistent-postgresql
                      , persistent-template
                      , postgresql-simple
+                     , random
                      , regex-pcre
                      , resourcet
                      , split

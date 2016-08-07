@@ -74,6 +74,27 @@ getAvailablePeers = do
   fmap (map SQL.entityVal) $ flip SQL.runSqlPool sqldb $ 
     SQL.selectList [PPeerEnableTime SQL.<. currentTime] []
 
+setPeerBondingState::String->Int->Int->IO ()
+setPeerBondingState ip port' state = do
+  sqldb <- runNoLoggingT $ SQL.createPostgresqlPool connStr' 20
+  flip SQL.runSqlPool sqldb $ 
+    SQL.updateWhere [PPeerIp SQL.==. T.pack ip, PPeerPort SQL.==. port'] [PPeerBondState SQL.=. state]
+  return ()
+  
+getBondedPeers::IO [PPeer]
+getBondedPeers = do
+  currentTime <- getCurrentTime
+  sqldb <- runNoLoggingT $ SQL.createPostgresqlPool connStr' 20
+  fmap (map SQL.entityVal) $ flip SQL.runSqlPool sqldb $ 
+    SQL.selectList [PPeerBondState SQL.==. 2, PPeerEnableTime SQL.<. currentTime] []
+
+getUnbondedPeers::IO [PPeer]
+getUnbondedPeers = do
+  currentTime <- getCurrentTime
+  sqldb <- runNoLoggingT $ SQL.createPostgresqlPool connStr' 20
+  fmap (map SQL.entityVal) $ flip SQL.runSqlPool sqldb $ 
+    SQL.selectList [PPeerBondState SQL.==. 0, PPeerEnableTime SQL.<. currentTime] []
+
 defaultPeer::PPeer
 defaultPeer = PPeer{
   pPeerPubkey=Nothing,

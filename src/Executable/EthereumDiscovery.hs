@@ -45,7 +45,7 @@ ethereumDiscovery args = do
     bracket
       (connectMe bootstrapAddr bootstrapPort privateKey (discoveryPort $ discoveryConfig ethConf))
       (liftIO . S.sClose)
-      (runEthUDPServer bootstrapAddr bootstrapPort cxt privateKey)
+      (runEthUDPServer cxt privateKey (discoveryPort $ discoveryConfig ethConf))
 
 
   return ()

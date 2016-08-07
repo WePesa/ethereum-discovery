@@ -14,6 +14,7 @@ module Blockchain.UDP (
   nodeIDToPoint,
   pointToNodeID,
   IAddr(..),
+  stringToIAddr,
   getHostAddress
   ) where
 
