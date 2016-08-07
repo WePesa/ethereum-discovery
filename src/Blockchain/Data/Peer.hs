@@ -28,7 +28,8 @@ share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 PPeer 
     pubkey Point Maybe
     ip T.Text
-    port Int
+    tcpPort Int
+    udpPort Int
     numSessions Int
     lastMsg T.Text
     lastMsgTime UTCTime
@@ -48,7 +49,8 @@ createPeer peerString =
   PPeer {
     pPeerPubkey = Just $ stringToPoint pubKey,
     pPeerIp = T.pack ip,
-    pPeerPort = port',
+    pPeerUdpPort = port', --TODO think about this....  Should the UDP port be the same as the TCP port by default?
+    pPeerTcpPort = port',
     pPeerNumSessions = 0,
     pPeerLastTotalDifficulty = 0,
     pPeerLastMsg  = T.pack "msg",
@@ -78,7 +80,7 @@ setPeerBondingState::String->Int->Int->IO ()
 setPeerBondingState ip port' state = do
   sqldb <- runNoLoggingT $ SQL.createPostgresqlPool connStr' 20
   flip SQL.runSqlPool sqldb $ 
-    SQL.updateWhere [PPeerIp SQL.==. T.pack ip, PPeerPort SQL.==. port'] [PPeerBondState SQL.=. state]
+    SQL.updateWhere [PPeerIp SQL.==. T.pack ip, PPeerUdpPort SQL.==. port'] [PPeerBondState SQL.=. state]
   return ()
   
 getBondedPeers::IO [PPeer]
@@ -99,7 +101,8 @@ defaultPeer::PPeer
 defaultPeer = PPeer{
   pPeerPubkey=Nothing,
   pPeerIp="",
-  pPeerPort=30303,
+  pPeerUdpPort=30303,
+  pPeerTcpPort=30303,
   pPeerNumSessions=0,
   pPeerLastMsg="",
   pPeerLastMsgTime=posixSecondsToUTCTime 0,
@@ -115,6 +118,6 @@ disablePeerForSeconds peer seconds = do
   currentTime <- getCurrentTime
   sqldb <- runNoLoggingT $ SQL.createPostgresqlPool connStr' 20
   flip SQL.runSqlPool sqldb $ 
-    SQL.updateWhere [PPeerIp SQL.==. pPeerIp peer, PPeerPort SQL.==. pPeerPort peer] [PPeerEnableTime SQL.=. fromIntegral seconds `addUTCTime` currentTime]
+    SQL.updateWhere [PPeerIp SQL.==. pPeerIp peer, PPeerTcpPort SQL.==. pPeerTcpPort peer] [PPeerEnableTime SQL.=. fromIntegral seconds `addUTCTime` currentTime]
   return ()
   

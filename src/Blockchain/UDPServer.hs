@@ -82,7 +82,7 @@ addPeersIfNeeded prv sock= do
       then do
         peerNumber <- liftIO $ randomRIO (0, length bondedPeers - 1)
         let thePeer = bondedPeers !! peerNumber
-        (peeraddr:_) <- liftIO $ getAddrInfo Nothing (Just $ T.unpack $ pPeerIp thePeer) (Just $ show $ pPeerPort thePeer)
+        (peeraddr:_) <- liftIO $ getAddrInfo Nothing (Just $ T.unpack $ pPeerIp thePeer) (Just $ show $ pPeerUdpPort thePeer)
         time <- liftIO $ round `fmap` getPOSIXTime
         randomBytes <- liftIO $ getEntropy 64
         sendPacket sock prv (addrAddress peeraddr) $ FindNeighbors (NodeID randomBytes) (time + 50)
@@ -94,7 +94,7 @@ attemptBond prv sock portNum = do
   unbondedPeers <- liftIO getUnbondedPeers
   when (length unbondedPeers /= 0) $ 
     forM_ unbondedPeers $ \p -> do
-      (peeraddr:_) <- liftIO $ getAddrInfo Nothing (Just $ T.unpack $ pPeerIp p) (Just $ show $ pPeerPort p)
+      (peeraddr:_) <- liftIO $ getAddrInfo Nothing (Just $ T.unpack $ pPeerIp p) (Just $ show $ pPeerUdpPort p)
       time <- liftIO $ round `fmap` getPOSIXTime
       (serveraddr:_) <- liftIO $ getAddrInfo
                                   (Just (defaultHints {addrFlags = [AI_PASSIVE]}))
@@ -102,9 +102,11 @@ attemptBond prv sock portNum = do
       sendPacket sock prv (addrAddress peeraddr) $ 
                 Ping 4 
                    (Endpoint (getHostAddress $ addrAddress serveraddr) 30303 30303) 
-                   (Endpoint (stringToIAddr $ T.unpack $ pPeerIp p) 30303 30303) 
+                   (Endpoint (stringToIAddr $ T.unpack $ pPeerIp p)
+                             (fromIntegral $ pPeerUdpPort p) 
+                             (fromIntegral $ pPeerTcpPort p))
                    (time+50)
-      liftIO $ setPeerBondingState (T.unpack $ pPeerIp p) (pPeerPort p) 1
+      liftIO $ setPeerBondingState (T.unpack $ pPeerIp p) (pPeerUdpPort p) 1
 
 udpHandshakeServer::(HasSQLDB m, MonadResource m, MonadBaseControl IO m, MonadThrow m, MonadIO m, MonadLogger m)=>
                     H.PrvKey->Socket->Int->m ()
@@ -128,7 +130,8 @@ udpHandshakeServer prv sock portNum = do
                  let peer = PPeer {
                        pPeerPubkey = Just $ hPubKeyToPubKey $ otherPubkey,
                        pPeerIp = T.pack ip,
-                       pPeerPort = fromIntegral $ getAddrPort addr,
+                       pPeerUdpPort = fromIntegral $ getAddrPort addr,
+                       pPeerTcpPort = fromIntegral $ getAddrPort addr, --TODO- put correct TCP port in here
                        pPeerNumSessions = 0,
                        pPeerLastTotalDifficulty = 0,
                        pPeerLastMsg  = T.pack "msg",
@@ -145,7 +148,7 @@ udpHandshakeServer prv sock portNum = do
                  sendPacket sock prv addr $ Pong (Endpoint peerAddr 30303 30303) 4 (time+50)
 
       Pong _ _ _ -> 
-        liftIO $ setPeerBondingState (sockAddrToIP addr) (fromIntegral $ getAddrPort addr) 1
+        liftIO $ setPeerBondingState (sockAddrToIP addr) (fromIntegral $ getAddrPort addr) 2
 
       FindNeighbors target _ -> do
                  time <- liftIO $ round `fmap` getPOSIXTime
@@ -156,12 +159,13 @@ udpHandshakeServer prv sock portNum = do
                  sendPacket sock prv addr $ Neighbors (map peerToNeighbor secondPeers) (time + 50)
                         
       Neighbors neighbors _ -> do
-                 forM_ neighbors $ \(Neighbor (Endpoint addr' _ tcpPort) nodeID) -> do
+                 forM_ neighbors $ \(Neighbor (Endpoint addr' udpPort tcpPort) nodeID) -> do
                                 curTime <- liftIO $ getCurrentTime
                                 let peer = PPeer {
                                       pPeerPubkey = Just $ nodeIDToPoint nodeID,
                                       pPeerIp = T.pack $ format addr',
-                                      pPeerPort = fromIntegral tcpPort,
+                                      pPeerUdpPort = fromIntegral udpPort,
+                                      pPeerTcpPort = fromIntegral tcpPort,
                                       pPeerNumSessions = 0,
                                       pPeerLastTotalDifficulty = 0,
                                       pPeerLastMsg  = T.pack "msg",

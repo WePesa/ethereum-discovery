@@ -149,7 +149,7 @@ peerToNeighbor p =
   case pPeerPubkey p of
    Nothing -> error "You can't call peerToNeigbor on a peer that doesn't have a pubkey"
    Just pubKey ->
-     Neighbor (Endpoint (stringToIAddr $ T.unpack $ pPeerIp p) (fromIntegral $ pPeerPort p) (fromIntegral $ pPeerPort p)) $ pointToNodeID pubKey
+     Neighbor (Endpoint (stringToIAddr $ T.unpack $ pPeerIp p) (fromIntegral $ pPeerUdpPort p) (fromIntegral $ pPeerTcpPort p)) $ pointToNodeID pubKey
 
 {-
 rlpToNDPacket::Word8->RLPObject->NodeDiscoveryPacket
