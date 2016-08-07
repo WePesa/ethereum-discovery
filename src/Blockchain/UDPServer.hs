@@ -14,7 +14,6 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Logger
 import           Control.Monad.State
 import           Control.Monad.Trans.Resource
-import Crypto.Types.PubKey.ECC
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Base16 as B16
@@ -22,11 +21,10 @@ import           Data.Time.Clock.POSIX
 import           Data.Time.Clock
 import qualified Data.Text as T
 
-import Data.Word
-
 import System.Entropy
 
 import qualified Blockchain.Colors as CL
+import Blockchain.Data.PubKey
 import Blockchain.EthConf
 import           Blockchain.Format
 import           Blockchain.UDP
@@ -73,10 +71,6 @@ connectMe bootstrapAddr bootstrapPort prv port' = do
          
   return sock
          
-pointToBytes::Point->[Word8]
-pointToBytes (Point x y) = intToBytes x ++ intToBytes y
-pointToBytes PointO = error "pointToBytes got value PointO, I don't know what to do here"
-
 addPeersIfNeeded::(MonadIO m, MonadLogger m)=>
                   String->String->H.PrvKey->Socket->m ()
 addPeersIfNeeded bootstrapAddr bootstrapPort prv sock= do

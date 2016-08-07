@@ -17,8 +17,8 @@ import qualified Network.Haskoin.Internals as H
     
 import qualified Blockchain.Colors as CL
 import Blockchain.ContextLite
+import Blockchain.Data.PubKey
 import Blockchain.EthConf
-import Blockchain.Handshake
 import Blockchain.P2PUtil
 import Blockchain.UDPServer
 
