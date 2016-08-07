@@ -17,22 +17,24 @@ import Blockchain.SHA
 
 setup::LoggingT IO ()
 setup = do
-  curTime <- liftIO $ getCurrentTime
-  let peer =
-        PPeer {
-          pPeerPubkey = Just $ stringToPoint "a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c",
-          pPeerIp = "52.16.188.185",
-          pPeerPort = 30303,
-          pPeerNumSessions = 0,
-          pPeerLastTotalDifficulty = 0,
-          pPeerLastMsg  = T.pack "msg",
-          pPeerLastMsgTime = curTime,
-          pPeerEnableTime = curTime,
-          pPeerLastBestBlockHash = SHA 0,
-          pPeerVersion = T.pack "61" -- fix
-          }
-
   runNoLoggingT $ withPostgresqlConn connStr $ runSqlConn $ do
+    curTime <- liftIO $ getCurrentTime
+    let peer =
+          PPeer {
+            pPeerPubkey = Just $ stringToPoint "a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c",
+            pPeerIp = "52.16.188.185",
+            pPeerPort = 30303,
+            pPeerNumSessions = 0,
+            pPeerLastTotalDifficulty = 0,
+            pPeerLastMsg  = T.pack "msg",
+            pPeerLastMsgTime = curTime,
+            pPeerEnableTime = curTime,
+            pPeerLastBestBlockHash = SHA 0,
+            pPeerVersion = T.pack "61" -- fix
+            }
+
+    _ <- runMigrationSilent migrateAll
+    
     _ <- insert peer
     return ()
 
