@@ -45,31 +45,14 @@ runEthUDPServer cxt myPriv portNum sock = do
   return ()
 
 connectMe::(MonadIO m, MonadLogger m)=>
-           String->String->H.PrvKey->Int->m Socket
-connectMe bootstrapAddr bootstrapPort prv port' = do
---  (serveraddr:_) <- getAddrInfo
---                      (Just (defaultHints {addrFlags = [AI_PASSIVE]}))
---                      Nothing (Just (show port))
+           Int->m Socket
+connectMe port' = do
   (serveraddr:_) <- liftIO $ getAddrInfo
                                   (Just (defaultHints {addrFlags = [AI_PASSIVE]}))
                                   Nothing (Just (show port'))
   sock <- liftIO $ socket (addrFamily serveraddr) Datagram defaultProtocol
   liftIO $ bindSocket sock (addrAddress serveraddr)
-
-  time <- liftIO $ round `fmap` getPOSIXTime
-
---  let bootstrapAddr = "52.16.188.185"
---      bootstrapPort = "30303"
---  let bootstrapAddr = "poc-9.ethdev.com"
---      bootstrapPort = "30303"
---  let bootstrapAddr = "127.0.0.1"
---      bootstrapPort = "30303"
           
-  (peeraddr:_) <- liftIO $ getAddrInfo Nothing (Just bootstrapAddr) (Just bootstrapPort)
---  sock2 <- socket (addrFamily peeraddr) Datagram defaultProtocol
-
-  sendPacket sock prv (addrAddress peeraddr) $ Ping 4 (Endpoint (getHostAddress $ addrAddress serveraddr) 30303 30303) (Endpoint (getHostAddress $ addrAddress peeraddr) 30303 30303) (time+50)
-         
   return sock
          
 addPeersIfNeeded::(MonadIO m, MonadLogger m)=>
