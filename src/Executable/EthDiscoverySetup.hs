@@ -34,8 +34,7 @@ setup maybeStratoNodes = do
             ]
     -}
 
-          Just stratoNodes -> zip (repeat stratoPubkey) stratoNodes
-            where stratoPubkey = "adaa44c0168b42da42b5eb51e6fd7e203978cf7789ac41bda28f7ea3e92f54bec7276cd704335e2c089d02e09ea77710340a1624febabedd87866c9d01cba341"
+          Just stratoNodes -> zip (repeat "") stratoNodes
 
     forM_ nodesPubkeys $ \(pubkey, node) ->
       insert $ createPeer $ "enode://" ++ (if null pubkey then "" else pubkey ++ "@") ++ node ++ ":30303"  

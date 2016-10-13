@@ -23,7 +23,7 @@ import Blockchain.P2PUtil
 import Blockchain.UDPServer
 
 privateKey :: H.PrvKey
-privateKey = fromMaybe (error "Bad value for hardcoded private key in Main.hs") $ H.makePrvKey 0xac3e8ce2ef31c3f45d5da860bcd9aee4b37a05c5a3ddee40dd061620c3dab380
+privateKey = fromMaybe (error "Bad value for hardcoded private key in ethconf.yaml") $ H.makePrvKey $ unPrivKey $ privKey ethConf
 
 ethereumDiscovery::LoggingT IO ()
 ethereumDiscovery = do
