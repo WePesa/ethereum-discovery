@@ -47,7 +47,7 @@ jamshidBirth = posixSecondsToUTCTime 0
 createPeer::String->PPeer
 createPeer peerString = 
   PPeer {
-    pPeerPubkey = Just $ stringToPoint pubKey,
+    pPeerPubkey = stringToPoint <$> pubKeyMaybe,
     pPeerIp = T.pack ip,
     pPeerUdpPort = port', --TODO think about this....  Should the UDP port be the same as the TCP port by default?
     pPeerTcpPort = port',
@@ -61,12 +61,12 @@ createPeer peerString =
     pPeerVersion = T.pack "61" -- fix
     }
   where
-    (pubKey, ip, port') = parseEnode peerString
+    (pubKeyMaybe, ip, port') = parseEnode peerString
 
-parseEnode::String->(String, String, Int)
+parseEnode::String->(Maybe String, String, Int)
 parseEnode enode =
-  case (enode =~ ("enode://([a-f0-9]{128})@(\\d+\\.\\d+\\.\\d+\\.\\d+):(\\d+)"::String))::(String, String, String, [String]) of
-    ("", _, "", [pubKey, ip, port']) -> (pubKey, ip, read port')
+  case (enode =~ ("enode://([a-f0-9]{128}@)?(\\d+\\.\\d+\\.\\d+\\.\\d+):(\\d+)"::String))::(String, String, String, [String]) of
+    ("", _, "", [pubKeyAt, ip, port']) -> (case pubKeyAt of {"" -> Nothing; x -> Just $ init x} , ip, read port')
     _ -> error $ "malformed enode: " ++ enode
 
 getAvailablePeers::IO [PPeer]
