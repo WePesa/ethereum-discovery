@@ -133,13 +133,9 @@ udpHandshakeServer prv sock portNum = do
       Pong _ _ _ -> 
         liftIO $ setPeerBondingState (sockAddrToIP addr) (fromIntegral $ getAddrPort addr) 2
 
-      FindNeighbors target _ -> do
+      FindNeighbors _ _ -> do
                  time <- liftIO $ round `fmap` getPOSIXTime
-                 allPeers <- liftIO $ getClosePeers target
-                 let firstPeers = take 8 allPeers
-                     secondPeers = drop 8 allPeers
-                 sendPacket sock prv addr $ Neighbors (map peerToNeighbor firstPeers) (time + 50)
-                 sendPacket sock prv addr $ Neighbors (map peerToNeighbor secondPeers) (time + 50)
+                 sendPacket sock prv addr $ Neighbors [] (time + 50)
                         
       Neighbors neighbors _ -> do
                  forM_ neighbors $ \(Neighbor (Endpoint addr' udpPort tcpPort) nodeID) -> do
