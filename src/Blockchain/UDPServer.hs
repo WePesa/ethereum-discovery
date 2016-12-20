@@ -103,8 +103,11 @@ udpHandshakeServer prv sock portNum = do
    Nothing -> do
      logInfoN "timeout triggered"
    Just (msg,addr) -> do
+     logInfoN $ T.pack $ "received bytes: len=" ++ (show $ B.length msg)
      let (packet, otherPubkey) = dataToPacket msg
+     logInfoN "before the logInfoN line"
      logInfoN $ T.pack $ CL.cyan "<<<<" ++ " (" ++ show addr ++ " " ++ BC.unpack (B.take 10 $ B16.encode $ B.pack $ pointToBytes $ hPubKeyToPubKey otherPubkey) ++ "....) " ++ format (fst $ dataToPacket msg)
+     logInfoN "after the logInfoN line"
 
      case packet of
       Ping _ _ _ _ -> do
